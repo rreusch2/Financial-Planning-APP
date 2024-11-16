@@ -1,0 +1,88 @@
+{
+    "name": "personal-finance-app",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+      "@headlessui/react": "^1.x",
+      "lucide-react": "^0.456.0",
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "react-router-dom": "^6.x",
+      "recharts": "^2.x"
+    },
+    "devDependencies": {
+      "@babel/core": "^7.x",
+      "@babel/preset-env": "^7.x",
+      "@babel/preset-react": "^7.x",
+      "@testing-library/jest-dom": "^6.x",
+      "@testing-library/react": "^14.x",
+      "babel-jest": "^29.x",
+      "babel-loader": "^9.x",
+      "css-loader": "^6.x",
+      "cypress": "^13.15.2",
+      "html-webpack-plugin": "^5.x",
+      "identity-obj-proxy": "^3.x",
+      "jest": "^29.x",
+      "jest-environment-jsdom": "^29.x",
+      "jest-watch-typeahead": "^2.x",
+      "react-test-renderer": "^18.3.1",
+      "sass": "^1.x",
+      "sass-loader": "^13.x",
+      "style-loader": "^3.x",
+      "webpack": "^5.x",
+      "webpack-cli": "^5.x",
+      "webpack-dev-server": "^4.x"
+    },
+    "scripts": {
+      "start": "webpack serve --open --mode development",
+      "build": "webpack --mode production",
+      "test": "jest --config jest.config.cjs"
+    },
+    "browserslist": {
+      "production": [
+        ">0.2%",
+        "not dead",
+        "not op_mini all"
+      ],
+      "development": [
+        "last 1 chrome version",
+        "last 1 firefox version",
+        "last 1 safari version"
+      ]
+    },
+    "jest": {
+      "testEnvironment": "jsdom",
+      "setupFilesAfterEnv": [
+        "@testing-library/jest-dom"
+      ],
+      "moduleNameMapper": {
+        "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+        "\\.(jpg|jpeg|png|gif|svg)$": "<rootDir>/__mocks__/fileMock.js"
+      },
+      "transform": {
+        "^.+\\.(js|jsx)$": "babel-jest"
+      },
+      "transformIgnorePatterns": [
+        "/node_modules/(?![@autofiy/autofiyable|@autofiy/property]).+\\.js$"
+      ]
+    },
+    "babel": {
+      "presets": [
+        [
+          "@babel/preset-env",
+          {
+            "targets": {
+              "node": "current"
+            }
+          }
+        ],
+        [
+          "@babel/preset-react",
+          {
+            "runtime": "automatic"
+          }
+        ]
+      ]
+    }
+  }
