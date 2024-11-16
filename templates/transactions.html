@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions List</title>
+</head>
+<body>
+    <h1>Transactions List</h1>
+
+    <!-- Date filter form -->
+    <form method="post" action="/fetch_transactions">
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+        <button type="submit">Filter</button>
+    </form>
+
+    <!-- Display transactions -->
+    <ul>
+        {% for transaction in transactions %}
+            <li>{{ transaction.date }} - {{ transaction.name }}: ${{ transaction.amount }}</li>
+        {% endfor %}
+    </ul>
+
+    <!-- Expense chart -->
+    <h2>Expense Distribution</h2>
+    {% if chart_base64 %}
+        <img src="data:image/png;base64,{{ chart_base64 }}" alt="Expense Chart">
+    {% else %}
+        <p>No chart available.</p>
+    {% endif %}
+</body>
+</html>

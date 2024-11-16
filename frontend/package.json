@@ -1,0 +1,98 @@
+{
+  "name": "personal-finance-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@headlessui/react": "^2.2.0",
+    "@mui/material": "^6.1.6",
+    "lucide-react": "^0.456.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-plaid-link": "^3.6.1",
+    "react-router-dom": "^6.x",
+    "recharts": "^2.x"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.25.9",
+    "@testing-library/jest-dom": "^6.x",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "babel-jest": "^29.x",
+    "babel-loader": "^9.2.1",
+    "css-loader": "^7.1.2",
+    "cypress": "^13.15.2",
+    "html-webpack-plugin": "^5.6.3",
+    "identity-obj-proxy": "^3.x",
+    "jest": "^29.x",
+    "jest-environment-jsdom": "^29.x",
+    "jest-watch-typeahead": "^2.x",
+    "postcss": "^8.4.48",
+    "postcss-loader": "^8.1.1",
+    "react-test-renderer": "^18.3.1",
+    "sass": "^1.x",
+    "sass-loader": "^16.0.3",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^3.4.14",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.1.0"
+  },
+  "scripts": {
+    "start": "webpack serve --open --mode development",
+    "build": "webpack --mode production",
+    "test": "jest --config jest.config.cjs"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "@testing-library/jest-dom"
+    ],
+    "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+      "\\.(jpg|jpeg|png|gif|svg)$": "<rootDir>/__mocks__/fileMock.js"
+    },
+    "transform": {
+      "^.+\\.(js|jsx)$": "babel-jest"
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/(?![@autofiy/autofiyable|@autofiy/property]).+\\.js$"
+    ]
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ],
+      [
+        "@babel/preset-react",
+        {
+          "runtime": "automatic"
+        }
+      ]
+    ]
+  }
+}
