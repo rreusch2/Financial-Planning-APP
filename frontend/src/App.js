@@ -1,11 +1,11 @@
-// src/App.js
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/authcontext';
 import Layout from './components/Layout/Layout';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import NotFound from './pages/NotFound';
-import PrivateRoute from './PrivateRoute'; // Ensure the path is correct
+import PrivateRoute from './PrivateRoute';
 import './tailwind.css';
 
 // Lazy load components
@@ -20,7 +20,7 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const App = () => {
   return (
     <ErrorBoundary>
-      <Router>
+      <AuthProvider>
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             {/* Public Routes */}
@@ -38,7 +38,7 @@ const App = () => {
             </Route>
           </Routes>
         </Suspense>
-      </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 };

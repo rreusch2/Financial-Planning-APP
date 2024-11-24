@@ -16,7 +16,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(128), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     access_token = db.Column(db.String(256), nullable=True)  # Ensure this line exists
-
+    plaid_access_token = db.Column(db.String(256), nullable=True)  # Add this line
+    
     # Relationships
     transactions = db.relationship('Transaction', backref='user', lazy=True)
     custom_incomes = db.relationship('CustomIncome', backref='user', lazy=True)
