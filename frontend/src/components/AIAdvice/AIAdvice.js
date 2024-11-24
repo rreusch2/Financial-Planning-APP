@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { Dialog } from '@headlessui/react';
 import { Loader, Search, X, RefreshCw } from 'lucide-react'; // Added RefreshCw icon
@@ -13,7 +13,7 @@ function AIAdvice() {
   const [adviceError, setAdviceError] = useState(null);
 
   // State for Expenses
-  const [expenses, setExpenses] = useState([]);
+  const [expenses, setExpenses] = useState([]); // Default to an empty array
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('');
@@ -30,9 +30,9 @@ function AIAdvice() {
       const response = await fetch('/api/ai_advice');
       if (!response.ok) throw new Error('Failed to fetch AI advice');
       const data = await response.json();
-      setAdvice(data.response);
+      setAdvice(data.response || 'No advice available at this time.');
     } catch (err) {
-      setAdviceError(err.message);
+      setAdviceError(err.message || 'An error occurred while fetching AI advice.');
       console.error('Error fetching AI advice:', err);
     } finally {
       setIsLoadingAdvice(false);
@@ -47,9 +47,9 @@ function AIAdvice() {
       const response = await fetch('/api/transactions');
       if (!response.ok) throw new Error('Failed to fetch expense data');
       const data = await response.json();
-      setExpenses(data.transactions);
+      setExpenses(data.transactions || []); // Default to empty array if no transactions
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'An error occurred while fetching expenses.');
       console.error('Error fetching expense data:', err);
     } finally {
       setLoading(false);
@@ -66,9 +66,9 @@ function AIAdvice() {
     setIsDialogOpen(true);
   };
 
-  const sortedAndFilteredExpenses = expenses
-    .filter(expense => 
-      filter === '' || 
+  const sortedAndFilteredExpenses = (expenses || []) // Ensure expenses is always an array
+    .filter((expense) =>
+      filter === '' ||
       expense.name.toLowerCase().includes(filter.toLowerCase()) ||
       expense.category.toLowerCase().includes(filter.toLowerCase())
     )
@@ -91,7 +91,7 @@ function AIAdvice() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">AI Financial Insights</h2>
-          <button 
+          <button
             onClick={fetchAIAdvice}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             disabled={isLoadingAdvice}
@@ -100,7 +100,7 @@ function AIAdvice() {
             Refresh Advice
           </button>
         </div>
-        
+
         {isLoadingAdvice ? (
           <div className="flex justify-center py-4">
             <Loader className="animate-spin h-6 w-6 text-blue-500" />
@@ -118,10 +118,10 @@ function AIAdvice() {
       <div className="bg-white rounded-lg shadow">
         <div className="p-4">
           <h2 className="text-xl font-semibold mb-4">Expense Overview</h2>
-          
+
           <div className="flex flex-wrap gap-4 mb-4">
-            <select 
-              value={timeFrame} 
+            <select
+              value={timeFrame}
               onChange={(e) => setTimeFrame(e.target.value)}
               className="border rounded p-2 focus:ring-2 focus:ring-blue-500"
             >
@@ -162,43 +162,6 @@ function AIAdvice() {
           </div>
         </div>
       </div>
-
-      {/* Expense Details Dialog */}
-      <Dialog
-        open={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        className="relative z-50"
-      >
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <Dialog.Title className="text-lg font-medium">
-                Expense Details
-              </Dialog.Title>
-              <button
-                onClick={() => setIsDialogOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {selectedExpense && (
-              <div className="space-y-3">
-                <p><span className="font-bold">Name:</span> {selectedExpense.name}</p>
-                <p>
-                  <span className="font-bold">Amount:</span>
-                  <span className={`ml-2 ${selectedExpense.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    ${Math.abs(selectedExpense.amount).toFixed(2)}
-                  </span>
-                </p>
-                <p><span className="font-bold">Date:</span> {selectedExpense.date}</p>
-                <p><span className="font-bold">Category:</span> {selectedExpense.category}</p>
-              </div>
-            )}
-          </Dialog.Panel>
-        </div>
-      </Dialog>
     </div>
   );
 }

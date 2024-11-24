@@ -1,12 +1,69 @@
 {
-    "python.analysis.autoImportCompletions": true,
-    "python.testing.unittestArgs": [
-        "-v",
-        "-s",
-        "./PersonalFinanceApp",
-        "-p",
-        "*test.py"
-    ],
-    "python.testing.pytestEnabled": false,
-    "python.testing.unittestEnabled": true
+  // GitHub Copilot Settings
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": true,
+    "python": true,
+    "javascript": true,
+    "typescript": true
+  },
+
+  // Python Settings
+  "python.analysis.autoImportCompletions": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./PersonalFinanceApp",
+    "-p",
+    "*test.py"
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true,
+
+  // Editor Settings
+  "editor.suggestSelection": "first",
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+  "editor.bracketPairColorization.enabled": true,
+
+  // Language Specific Settings
+  "[python]": {
+    "editor.formatOnType": true,
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.tabSize": 4
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // File Auto-Save
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+
+  // Terminal Settings
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.fontSize": 12,
+
+  // Git Settings
+  "git.enableSmartCommit": true,
+  "git.autofetch": true,
+  "git.confirmSync": false,
+
+  // Error Lens Settings
+  "errorLens.enabledDiagnosticLevels": ["error", "warning", "info"],
+  "errorLens.enabled": true,
+  "github.copilot.editor.enableAutoCompletions": true
 }

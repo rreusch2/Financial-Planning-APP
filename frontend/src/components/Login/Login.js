@@ -1,5 +1,3 @@
-// src/components/Login/Login.js
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,14 +24,25 @@ const Login = () => {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
-
       if (response.ok) {
-        // Login successful
+        const data = await response.json();
         console.log(data.message);
-        navigate('/dashboard'); // Redirect to dashboard
+
+        // Fetch current user after successful login
+        const userResponse = await fetch('/api/current_user', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          console.log('Current user:', userData);
+          navigate('/dashboard'); // Redirect to the dashboard
+        } else {
+          setError('Failed to fetch user details after login.');
+        }
       } else {
-        // Handle errors (e.g., invalid credentials)
+        const data = await response.json();
         setError(data.error || 'Login failed. Please try again.');
       }
     } catch (err) {
@@ -80,6 +89,14 @@ const Login = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+        <div className="mt-4 text-center">
+          <a
+            href="/register"
+            className="text-blue-600 hover:underline"
+          >
+            Don't have an account? Register here.
+          </a>
+        </div>
       </div>
     </div>
   );

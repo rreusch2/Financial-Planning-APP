@@ -32,21 +32,22 @@ function Dashboard() {
 
   const navigate = useNavigate();
 
-  // Fetch dashboard data
   const fetchDashboardData = async () => {
     try {
       const response = await fetch('/api/dashboard', {
         credentials: 'include',
       });
       const data = await response.json();
+      console.log('Dashboard Data:', data); // Log the API response here
+  
       if (data.error) {
         console.error('Error fetching dashboard data:', data.error);
         setError(data.error);
       } else {
-        setTotalIncome(data.total_income);
-        setTotalExpenses(data.total_expenses);
-        setNetBalance(data.net_balance);
-        setTransactions(data.transactions);
+        setTotalIncome(data.total_income || 0);
+        setTotalExpenses(data.total_expenses || 0);
+        setNetBalance(data.net_balance || 0);
+        setTransactions(data.transactions || []);
         setError(null);
       }
     } catch (error) {
@@ -54,27 +55,24 @@ function Dashboard() {
       setError('Failed to fetch dashboard data.');
     }
   };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  
 
   const handleBankSync = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/sync-bank', {
-        method: 'POST',
+        method: 'POST', // Correct HTTP method
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
+        credentials: 'include', // Include cookies
       });
-
+  
       if (!response.ok) {
         throw new Error('Failed to sync bank data');
       }
-
-      await fetchDashboardData();
+  
+      await fetchDashboardData(); // Refresh dashboard data after syncing
       setLastSynced(new Date());
       setSyncError(null); // Clear any previous sync errors
     } catch (err) {
@@ -83,7 +81,7 @@ function Dashboard() {
       setLoading(false);
     }
   };
-
+  
   // Conditional Rendering
   if (loading) return <LoadingSpinner />;
 
