@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import LoadingSpinner from './components/common/LoadingSpinner'; // Adjust the import path as needed
+import React, { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
+import LoadingSpinner from "../common/LoadingSpinner"; // Corrected import path
 
 const PrivateRoute = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/current_user', {
-          method: 'GET',
-          credentials: 'include', // Include cookies
+        const response = await fetch("/api/auth/check", {
+          method: "GET",
+          credentials: "include",
         });
 
         if (response.ok) {
@@ -19,15 +20,17 @@ const PrivateRoute = ({ children }) => {
           setIsAuthenticated(false);
         }
       } catch (error) {
+        console.error("Error checking authentication:", error);
         setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
     };
 
     checkAuth();
   }, []);
 
-  if (isAuthenticated === null) {
-    // While checking authentication, show a loading spinner
+  if (loading) {
     return <LoadingSpinner />;
   }
 

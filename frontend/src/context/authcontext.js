@@ -1,88 +1,85 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../utils/api";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  const checkAuth = async () => {
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
     try {
-      const response = await fetch('/api/auth/check', {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
+      const response = await api.checkAuth();
+      if (response.authenticated) {
+        setUser(response.user);
       } else {
         setUser(null);
+        navigate("/login");
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    } catch (err) {
+      console.error("Auth check failed:", err);
       setUser(null);
+      navigate("/login");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const login = async (username, password) => {
+  const login = async (credentials) => {
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setUser(data.user);
-        return { success: true };
-      } else {
-        return { success: false, error: data.error };
+      setLoading(true);
+      const response = await api.login(credentials);
+      if (response.success) {
+        setUser(response.user);
+        navigate("/");
+        return true;
       }
-    } catch (error) {
-      console.error('Login failed:', error);
-      return { success: false, error: 'Network error' };
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await api.logout();
       setUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
+      navigate("/login");
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
   };
 
   const value = {
     user,
     loading,
+    error,
     login,
     logout,
-    checkAuth,
+    checkAuthStatus,
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (context === null) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-
-export default AuthContext;

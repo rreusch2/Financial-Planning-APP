@@ -1,151 +1,152 @@
-// src/pages/RegisterPage.js
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 
 const RegisterPage = () => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [flashMessages, setFlashMessages] = useState([]);
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirm_password: "",
+  });
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Client-side validation
-    if (password !== confirmPassword) {
-      setFlashMessages([{ category: 'error', message: 'Passwords do not match. Please try again.' }]);
-      return;
-    }
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
+      const response = await fetch("http://localhost:5028/api/auth/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, email, password, confirm_password: confirmPassword }),
+        body: JSON.stringify(formData),
+        credentials: "include",
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle server-side validation errors
-        setFlashMessages(data.messages || [{ category: 'error', message: 'Registration failed.' }]);
-      } else {
-        // Registration successful
-        setFlashMessages([{ category: 'success', message: 'Registration successful. Please log in.' }]);
-        // Redirect to login page after a short delay
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        throw new Error(data.error || "Registration failed");
       }
-    } catch (error) {
-      console.error('Error during registration:', error);
-      setFlashMessages([{ category: 'error', message: 'An unexpected error occurred. Please try again later.' }]);
+
+      // Registration successful
+      navigate("/login");
+    } catch (err) {
+      setError(err.message || "Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white p-6 rounded shadow-md">
-        <h1 className="text-2xl font-bold mb-4 text-center">Register</h1>
-
-        {/* Flash Messages */}
-        {flashMessages.length > 0 && (
-          <div id="flash-messages" className="mb-4">
-            {flashMessages.map((msg, index) => (
-              <div
-                key={index}
-                className={`p-2 mb-2 rounded ${
-                  msg.category === 'success' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
-                }`}
-              >
-                {msg.message}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="register-form">
-          <div className="mb-4">
-            <label htmlFor="username" className="block mb-1">
-              Username:
-            </label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="w-full border px-3 py-2 rounded"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="email" className="block mb-1">
-              Email:
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full border px-3 py-2 rounded"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="password" className="block mb-1">
-              Password:
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full border px-3 py-2 rounded"
-            />
-            <small className="text-gray-600">Password must be at least 8 characters long.</small>
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="confirm_password" className="block mb-1">
-              Confirm Password:
-            </label>
-            <input
-              type="password"
-              id="confirm_password"
-              name="confirm_password"
-              placeholder="Re-enter your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="w-full border px-3 py-2 rounded"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          )}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Username"
+                value={formData.username}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="confirm_password" className="sr-only">
+                Confirm password
+              </label>
+              <input
+                id="confirm_password"
+                name="confirm_password"
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Confirm password"
+                value={formData.confirm_password}
+                onChange={handleChange}
+              />
+            </div>
           </div>
 
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
-            Register
-          </button>
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {loading ? "Creating account..." : "Sign up"}
+            </button>
+          </div>
         </form>
 
-        <p className="mt-4 text-center">
-          Already have an account?{' '}
-          <Link to="/login" className="text-blue-600 hover:underline">
-            Log in here.
+        <div className="text-sm text-center">
+          <Link
+            to="/login"
+            className="font-medium text-blue-600 hover:text-blue-500"
+          >
+            Already have an account? Sign in
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );

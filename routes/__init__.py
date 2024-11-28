@@ -1,13 +1,9 @@
-# routes/__init__.py
 from flask import Blueprint
 
+# Create blueprints
 auth_bp = Blueprint('auth', __name__)
-transactions_bp = Blueprint('transactions', __name__)
 plaid_bp = Blueprint('plaid', __name__)
-dashboard_bp = Blueprint('dashboard', __name__)
+transaction_bp = Blueprint('transaction', __name__)
 
-# Import routes after blueprint creation to avoid circular imports
-from routes.auth import *
-from routes.transactions import *
-from routes.plaid import *
-from routes.dashboard import *
+# Initialize other variables
+__all__ = ['auth_bp', 'plaid_bp', 'transaction_bp']

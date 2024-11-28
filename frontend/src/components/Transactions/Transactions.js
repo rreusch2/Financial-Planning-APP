@@ -1,80 +1,117 @@
-// src/components/Transactions/Transactions.js
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
 
-const Transactions = ({ transactions }) => {
-  const navigate = useNavigate();
+const Transactions = ({ transactions = [] }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({
+    key: "date",
+    direction: "desc",
+  });
 
-  // Display only the first 8 transactions
-  const recentTransactions = transactions.slice(0, 8);
-
-  if (!transactions || transactions.length === 0) {
-    return <div className="p-4">No transactions available.</div>;
-  }
-
-  const handleViewMore = () => {
-    navigate('/transactions'); // Navigate to full transactions page
+  const handleSort = (key) => {
+    setSortConfig((prevSort) => ({
+      key,
+      direction:
+        prevSort.key === key && prevSort.direction === "asc" ? "desc" : "asc",
+    }));
   };
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Recent Transactions</h2>
-      </div>
+  const sortedTransactions = Array.isArray(transactions)
+    ? [...transactions].sort((a, b) => {
+        const direction = sortConfig.direction === "asc" ? 1 : -1;
+        if (sortConfig.key === "date") {
+          return direction * (new Date(a.date) - new Date(b.date));
+        } else if (sortConfig.key === "amount") {
+          return direction * (a.amount - b.amount);
+        }
+        const valueA = (a[sortConfig.key] || "").toLowerCase();
+        const valueB = (b[sortConfig.key] || "").toLowerCase();
+        return direction * valueA.localeCompare(valueB);
+      })
+    : [];
 
-      <div className="overflow-hidden">
-        <div className="bg-white rounded-lg border">
-          {recentTransactions.map((transaction, index) => (
-            <div
-              key={transaction.id}
-              className={`flex items-center justify-between p-4 ${
-                index !== recentTransactions.length - 1 ? 'border-b' : ''
-              }`}
-            >
-              <div className="flex items-center space-x-4">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    transaction.amount < 0 ? 'bg-red-100' : 'bg-green-100'
-                  }`}
-                >
-                  <span
-                    className={`text-lg ${
-                      transaction.amount < 0 ? 'text-red-600' : 'text-green-600'
-                    }`}
-                  >
-                    {transaction.amount < 0 ? '-' : '+'}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-semibold">{transaction.name}</p>
-                  <p className="text-sm text-gray-500">{transaction.date}</p>
-                </div>
-              </div>
-              <div>
-                <p
-                  className={`font-semibold ${
-                    transaction.amount < 0 ? 'text-red-600' : 'text-green-600'
-                  }`}
-                >
-                  ${Math.abs(transaction.amount).toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-500">{transaction.category}</p>
-              </div>
-            </div>
-          ))}
+  const filteredTransactions = sortedTransactions.filter((transaction) => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return (
+      transaction.name.toLowerCase().includes(lowerSearch) ||
+      transaction.category?.toLowerCase().includes(lowerSearch) ||
+      transaction.amount.toString().includes(lowerSearch)
+    );
+  });
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Recent Transactions</h2>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
         </div>
       </div>
 
-      <div className="mt-4 text-center">
-        <button
-          onClick={handleViewMore}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          View All Transactions
-        </button>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("date")}
+              >
+                Date <ChevronDown />
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("name")}
+              >
+                Description <ChevronDown />
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("category")}
+              >
+                Category <ChevronDown />
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("amount")}
+              >
+                Amount <ChevronDown />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTransactions.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                  No transactions found.
+                </td>
+              </tr>
+            ) : (
+              filteredTransactions.map((transaction) => (
+                <tr key={transaction.id}>
+                  <td>{new Date(transaction.date).toLocaleDateString()}</td>
+                  <td>{transaction.name}</td>
+                  <td>{transaction.category || "Uncategorized"}</td>
+                  <td
+                    className={
+                      transaction.amount < 0 ? "text-red-600" : "text-green-600"
+                    }
+                  >
+                    ${Math.abs(transaction.amount).toFixed(2)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
-
 export default Transactions;

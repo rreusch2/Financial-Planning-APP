@@ -1,222 +1,53 @@
-/* dashboard.css */
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f0f4f8;
-    margin: 0;
-    padding: 0;
+/* General Dashboard Styles */
+.dashboard-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-header {
-    background-color: #4CAF50;
-    color: #fff;
-    padding: 1rem;
-    text-align: center;
+/* Welcome Banner */
+.welcome-banner {
+  background: linear-gradient(90deg, #0072ff, #00c6ff);
+  color: white;
+  text-align: center;
+  padding: 40px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
 }
 
-.container {
-    display: grid;
-    gap: 20px;
-    padding: 20px;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+.welcome-banner h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
 }
 
+.welcome-banner p {
+  font-size: 1.2rem;
+}
+
+/* Cards */
 .card {
-    background-color: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    transition: transform 0.2s;
-}
-
-.card:hover {
-    transform: scale(1.03);
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .card h2 {
-    margin-top: 0;
-    color: #333;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
 }
 
-.card p, .card ul {
-    color: #555;
+/* Action Buttons */
+.button-primary {
+  background: #0072ff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
 }
 
-ul {
-    list-style-type: none;
-    padding: 0;
-}
-
-li {
-    padding: 5px 0;
-    border-bottom: 1px solid #ddd;
-}
-
-img {
-    max-width: 100%;
-    border-radius: 10px;
-}
-
-.button {
-    display: inline-block;
-    padding: 10px 20px;
-    font-size: 16px;
-    color: #fff;
-    background-color: #007BFF;
-    text-decoration: none;
-    border-radius: 5px;
-    text-align: center;
-    transition: background-color 0.3s;
-}
-
-.button:hover {
-    background-color: #0056b3;
-}
-
-
-.pagination {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-}
-
-.pagination a {
-    background-color: #4CAF50;
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 5px;
-    text-decoration: none;
-    font-size: 14px;
-}
-
-.pagination a:hover {
-    background-color: #45a049;
-}
-
-.pagination span {
-    align-self: center;
-}
-
-.transactions-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background: white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.transactions-table th,
-.transactions-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-}
-
-.transactions-table th {
-    background-color: #4CAF50;
-    color: white;
-    font-weight: 600;
-}
-
-.transactions-table tr:hover {
-    background-color: #f8f9fa;
-}
-
-/* Amount Colors */
-.amount-positive {
-    color: #4CAF50;
-    font-weight: 500;
-}
-
-.amount-negative {
-    color: #dc3545;
-    font-weight: 500;
-}
-
-/* Filter Section */
-.filter-section {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-wrap: wrap;
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.filter-section input[type="date"] {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.filter-section button {
-    padding: 8px 16px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s;
-}
-
-.filter-section button:hover {
-    background-color: #45a049;
-}
-
-/* Add responsive design rules */
-@media (max-width: 768px) {
-    .transactions-table {
-        font-size: 14px;
-    }
-    
-    .filter-section {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .filter-section input[type="date"],
-    .filter-section button {
-        width: 100%;
-        margin: 5px 0;
-    }
-}
-
-.charts {
-    grid-column: span 2;  
-}
-
-#monthlyTrendChart,
-#categoryPieChart {
-    margin: 20px 0;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.chart-controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.chart-filter {
-    padding: 8px 16px;
-    background-color: #fff;
-    border: 1px solid #4CAF50;
-    color: #4CAF50;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s;
-}
-
-.chart-filter:hover,
-.chart-filter.active {
-    background-color: #4CAF50;
-    color: white;
+.button-primary:hover {
+  background: #005bbb;
 }

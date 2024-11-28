@@ -1,53 +1,42 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/components/Login/Login.js
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchWithError } from "../../api"; // Centralize API calls
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Handle form submission
   const handleLogin = async (e) => {
-    e.preventDefault(); // Prevent form from refreshing the page
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies in the request
+      const response = await fetchWithError("/api/login", {
+        method: "POST",
         body: JSON.stringify({ username, password }),
+        credentials: "include",
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log(data.message);
+      if (response) {
+        console.log("Login successful:", response.message);
 
-        // Fetch current user after successful login
-        const userResponse = await fetch('/api/current_user', {
-          method: 'GET',
-          credentials: 'include',
+        // Fetch the current user to ensure authentication state
+        const userData = await fetchWithError("/api/auth/check", {
+          method: "GET",
+          credentials: "include",
         });
 
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          console.log('Current user:', userData);
-          navigate('/dashboard'); // Redirect to the dashboard
-        } else {
-          setError('Failed to fetch user details after login.');
-        }
-      } else {
-        const data = await response.json();
-        setError(data.error || 'Login failed. Please try again.');
+        console.log("Current user:", userData);
+        navigate("/dashboard"); // Redirect after successful login
       }
     } catch (err) {
-      console.error('Error:', err);
-      setError('An unexpected error occurred. Please try again later.');
+      console.error("Login error:", err);
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -83,17 +72,14 @@ const Login = () => {
             type="submit"
             disabled={loading}
             className={`w-full py-2 px-4 bg-blue-600 text-white rounded ${
-              loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
+              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
             }`}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
         <div className="mt-4 text-center">
-          <a
-            href="/register"
-            className="text-blue-600 hover:underline"
-          >
+          <a href="/register" className="text-blue-600 hover:underline">
             Don't have an account? Register here.
           </a>
         </div>
