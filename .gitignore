@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+venv/
 
 # Ignore virtual environments
 .venv/
@@ -13,6 +14,7 @@ __pycache__/
 .idea/
 .vscode/
 .node_modules/
+node_modules/
 
 # Ignore any other unnecessary files or folders
 libs/
@@ -24,3 +26,11 @@ site-packages/
 # Ignore temporary files
 *.tmp
 *.temp
+
+# Ignore sensitive files
+.env
+secrets.toml
+access_token.txt
+
+# Ignore Flask session files
+flask_session/
