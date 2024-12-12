@@ -1,0 +1,4 @@
+File: app.py -> Modified and saved as modified_files\app.py
+File: ai_integration.py -> Modified and saved as modified_files\ai_integration.py
+File: plaid_integration.py -> Modified and saved as modified_files\plaid_integration.py
+File: models.py -> Modified and saved as modified_files\models.py

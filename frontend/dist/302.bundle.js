@@ -1,1 +1,1 @@
-(self.webpackChunkpersonal_finance_app=self.webpackChunkpersonal_finance_app||[]).push([[302],{3302:()=>{}}]);
+(self.webpackChunkpersonal_finance_app=self.webpackChunkpersonal_finance_app||[]).push([[302],{302:()=>{}}]);
