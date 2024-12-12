@@ -34,3 +34,24 @@ access_token.txt
 
 # Ignore Flask session files
 flask_session/
+
+financial_forcasting.py
+data_analysis.py
+seed_data.py
+sentiment_analysis.py
+test_dataloader.py
+test_model.py
+preprocess.sparse.py
+custom_categories.py
+fix_label.py
+migrations/
+dlrm/
+PersonalFinanceApp/
+transactions_npy/
+nlp_integration/
+update_categories.py
+export_data.py
+test_data.py
+BankTextCategorizer/
+finbert_sentiment.py
+import unnitest.py
