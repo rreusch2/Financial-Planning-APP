@@ -1,9 +1,8 @@
-import { CreditCard, PiggyBank, TrendingUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { AIInsights } from '../components/dashboard/AIInsights';
-import { StatCard } from '../components/dashboard/StatCard';
-import { ConnectBankCard } from '../components/onboarding/ConnectBankCard';
+import React, { useState, useEffect } from 'react';
+import { PiggyBank, TrendingUp, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { StatCard, AIInsightCard, SpendingInsights, SmartBudgetCard } from '../components/dashboard';
+import { ConnectBankCard } from '../components/onboarding/ConnectBankCard';
 import { plaidApi } from '../lib/plaid';
 
 interface DashboardData {
@@ -52,7 +51,7 @@ export default function Dashboard() {
 
   const handlePlaidSuccess = async () => {
     try {
-      await refreshUser(); // Added parentheses to call the function
+      await refreshUser();
       await fetchDashboardData();
     } catch (err) {
       console.error('Error after Plaid success:', err);
@@ -109,7 +108,43 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AIInsights insights={data?.ai_insights} loading={loading} />
+        <AIInsightCard
+          type="prediction"
+          title="Spending Forecast"
+          content="Based on your patterns, you might exceed your dining budget next week."
+          confidence={85}
+          impact="negative"
+        />
+        <AIInsightCard
+          type="tip"
+          title="Savings Opportunity"
+          content="Switching your streaming subscriptions to annual plans could save you $84/year."
+          impact="positive"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <SpendingInsights
+            data={data?.spending_history ?? []}
+            predictedSpending={data?.predicted_spending ?? 0}
+            spendingTrend={data?.spending_trend ?? 0}
+          />
+        </div>
+        <div className="space-y-4">
+          <SmartBudgetCard
+            category="Dining"
+            spent={450}
+            budget={500}
+            aiSuggestion={475}
+          />
+          <SmartBudgetCard
+            category="Shopping"
+            spent={850}
+            budget={700}
+            aiSuggestion={650}
+          />
+        </div>
       </div>
     </div>
   );
