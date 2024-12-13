@@ -91,7 +91,7 @@ export const plaidApi = {
 
   getDashboardData: async (): Promise<DashboardSummary> => {
     try {
-      const response = await api.get<DashboardSummary>('/transactions/summary');
+      const response = await api.get<DashboardSummary>('/transactions/insights');
       return response;
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

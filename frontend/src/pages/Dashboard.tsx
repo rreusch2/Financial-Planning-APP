@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { PiggyBank, TrendingUp, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { StatCard, AIInsightCard, SpendingInsights, SmartBudgetCard } from '../components/dashboard';
+import { StatCard, SpendingInsights, SmartBudgetCard } from '../components/dashboard';
 import { ConnectBankCard } from '../components/onboarding/ConnectBankCard';
 import { plaidApi } from '../lib/plaid';
+import { AIInsightCard } from '../components/dashboard/AIInsightCard';
 
 interface DashboardData {
-  total_income: number;
-  total_expenses: number;
-  net_balance: number;
+  summary: {
+    total_income: number;
+    total_expenses: number;
+    net_balance: number;
+  };
   recent_transactions: Array<{
     id: string;
     date: string;
     name: string;
     amount: number;
     category?: string;
-    merchant_name?: string;
   }>;
-  ai_insights: string | null;
+  ai_insights: {
+    analysis: string;
+    spending_data: Record<string, number>;
+    predictions: {
+      next_month_prediction: number;
+      confidence: number;
+      trend: string;
+    };
+    anomalies: any[];
+  };
+  has_plaid_connection: boolean;
 }
 
 export default function Dashboard() {
@@ -90,37 +102,30 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Total Income"
-          value={data?.total_income ?? 0}
+          value={data?.summary?.total_income ?? 0}
           icon={TrendingUp}
           type="income"
         />
         <StatCard
           title="Total Expenses"
-          value={data?.total_expenses ?? 0}
+          value={data?.summary?.total_expenses ?? 0}
           icon={PiggyBank}
           type="expense"
         />
         <StatCard
           title="Net Balance"
-          value={data?.net_balance ?? 0}
+          value={data?.summary?.net_balance ?? 0}
           icon={CreditCard}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AIInsightCard
-          type="prediction"
-          title="Spending Forecast"
-          content="Based on your patterns, you might exceed your dining budget next week."
-          confidence={85}
-          impact="negative"
-        />
-        <AIInsightCard
-          type="tip"
-          title="Savings Opportunity"
-          content="Switching your streaming subscriptions to annual plans could save you $84/year."
-          impact="positive"
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <AIInsightCard
+            insights={data?.ai_insights?.analysis}
+            loading={loading}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

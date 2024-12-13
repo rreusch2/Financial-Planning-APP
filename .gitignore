@@ -56,5 +56,5 @@ BankTextCategorizer/
 finbert_sentiment.py
 import unnitest.py
 secrets.to
-frontend/.env
+
 

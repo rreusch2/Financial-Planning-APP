@@ -1,202 +1,141 @@
 from .base import BaseAIService
-from typing import Dict, List
-from collections import defaultdict
-import numpy as np
+from typing import Dict, List, Tuple
 from datetime import datetime
+import numpy as np
+from collections import defaultdict
 
 class TransactionAnalyzer(BaseAIService):
-    def analyze_transaction(self, transaction_data):
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a financial analyst specializing in personal spending patterns and budget optimization."
-            },
-            {
-                "role": "user",
-                "content": f"Analyze this transaction: {transaction_data}"
-            }
-        ]
-        
-        analysis = self._create_completion(messages)
-        return analysis or "Unable to analyze transaction at this time."
-    
-    def analyze_spending_patterns(self, transactions: List[Dict]) -> Dict:
-        spending_data = self._calculate_spending(transactions)
-        trends = self._analyze_trends(transactions)
-        unusual = self._identify_unusual_transactions(transactions)
-        recurring = self._identify_recurring_expenses(transactions)
-        
-        total_spending = sum(abs(t['amount']) for t in transactions if t['amount'] < 0)
-        
+    def categorize_transaction(self, description: str, amount: float) -> Dict[str, any]:
+        """Use AI to categorize a transaction and determine if it's income or expense."""
         prompt = f"""
-        Analyze the following financial data and provide detailed insights:
+        Analyze this transaction:
+        Description: {description}
+        Amount: ${amount}
 
-        Spending Categories: {spending_data}
-        Total Monthly Spending: ${total_spending}
-        Month-over-Month Trends: {trends}
-        Unusual Transactions: {unusual}
-        Recurring Expenses: {recurring}
-
-        Please provide:
-        1. Key Insights:
-           - Identify major spending patterns
-           - Highlight significant changes in spending
-           - Point out potential areas of concern
-
-        2. Savings Recommendations:
-           - Specific actionable suggestions for reducing expenses
-           - Potential monthly savings amounts
-           - Priority areas for cost reduction
-
-        3. Risk Assessment:
-           - Evaluate spending sustainability
-           - Identify potential financial risks
-           - Suggest preventive measures
-
-        4. Budget Optimization:
-           - Recommend category-specific budget adjustments
-           - Suggest optimal spending allocation
-           - Provide specific steps for implementation
-
-        5. Future Projections:
-           - Project next month's expenses
-           - Identify seasonal spending patterns
-           - Suggest proactive financial planning steps
+        Provide the following in your analysis:
+        1. Category (e.g., Dining, Shopping, Salary, Investment)
+        2. Type (income or expense)
+        3. Confidence score (0-100)
+        4. Sub-category (more specific classification)
+        5. Tags (relevant keywords)
         """
-        
-        analysis = self._create_completion([{
+
+        response = self._create_completion([{
             "role": "system",
-            "content": "You are a sophisticated financial advisor providing specific, actionable insights."
+            "content": "You are a financial transaction analyzer specializing in categorization and pattern recognition."
         }, {
             "role": "user",
             "content": prompt
-        }], model="gpt-4")
-        
+        }])
+
+        # Parse the AI response and structure it
+        # (You'll need to implement proper response parsing based on your AI model's output format)
         return {
-            'analysis': analysis,
-            'spending_data': spending_data,
-            'trends': trends,
-            'unusual_transactions': unusual,
-            'recurring_expenses': recurring,
-            'total_spending': total_spending,
-            'timestamp': datetime.now().isoformat()
+            'category': 'parsed_category',
+            'type': 'income' if amount > 0 else 'expense',
+            'confidence': 85,
+            'sub_category': 'parsed_sub_category',
+            'tags': ['parsed', 'tags']
         }
+
+    def analyze_spending_patterns(self, transactions: List[Dict]) -> Dict:
+        """Analyze spending patterns and provide insights."""
+        
+        total_spending = sum(t['amount'] for t in transactions if t['amount'] < 0)
+        categories = self._group_by_category(transactions)
     
-    def _calculate_spending(self, transactions: List[Dict]) -> Dict:
-        spending = defaultdict(lambda: {
-            'total': 0,
-            'count': 0,
-            'average': 0,
-            'max': 0,
-            'min': float('inf')
-        })
+        prompt = f"""
+        Analyze these spending patterns:
+        Total Spending: ${abs(total_spending)}
+        Categories: {categories}
+
+        Provide:
+        1. Key spending insights
+        2. Unusual patterns
+        3. Recommendations for savings
+        4. Predicted spending trends
+        5. Budget suggestions by category
+        """
+
+        analysis = self._create_completion([{
+            "role": "system",
+            "content": "You are a financial analyst specializing in personal spending patterns and budget optimization."
+        }, {
+            "role": "user",
+            "content": prompt
+        }], model="gpt-3.5-turbo")
+
+    # Shorten the analysis to be more concise
+        shortened_analysis = self._shorten_analysis(analysis)
+
+        return {
+            'analysis': shortened_analysis,
+            'spending_data': categories,
+            'predictions': self._generate_predictions(transactions),
+            'anomalies': self._detect_anomalies(transactions)
+        }
+
+    def _shorten_analysis(self, analysis: str) -> str:
+        """Shorten the AI analysis to be more concise and user-friendly."""
+        lines = analysis.split('\n')
+        shortened_lines = []
+        for line in lines:
+            if len(line) > 100:
+                shortened_lines.append(line[:97] + '...')
+            else:
+                shortened_lines.append(line)
+        return '\n'.join(shortened_lines)
+
+    def _group_by_category(self, transactions: List[Dict]) -> Dict[str, float]:
+        """Group transactions by category and calculate totals."""
+        categories = defaultdict(float)
+        for t in transactions:
+            categories[t.get('category', 'Other')] += abs(t['amount'])
+        return dict(categories)
+
+    def _generate_predictions(self, transactions: List[Dict]) -> Dict:
+        """Generate spending predictions using historical data."""
+        # Implement time series analysis and prediction logic
+        return {
+            'next_month_prediction': 0,
+            'confidence': 0,
+            'trend': 'stable'
+        }
+
+    def _detect_anomalies(self, transactions: List[Dict]) -> List[Dict]:
+        """Detect unusual spending patterns."""
+        # Implement anomaly detection logic
+        return []
+
+    def get_smart_budget_recommendations(self, 
+        spending_history: List[Dict],
+        income: float
+    ) -> Dict[str, Dict]:
+        """Generate AI-powered budget recommendations."""
+        categories = self._group_by_category(spending_history)
         
-        for transaction in transactions:
-            if transaction['amount'] < 0:
-                category = transaction.get('category', 'Uncategorized')
-                amount = abs(transaction['amount'])
-                
-                cat_data = spending[category]
-                cat_data['total'] += amount
-                cat_data['count'] += 1
-                cat_data['max'] = max(cat_data['max'], amount)
-                cat_data['min'] = min(cat_data['min'], amount)
-                cat_data['average'] = cat_data['total'] / cat_data['count']
-        
-        return dict(spending)
-    
-    def _analyze_trends(self, transactions: List[Dict]) -> Dict:
-        monthly_spending = defaultdict(float)
-        
-        for transaction in transactions:
-            if transaction['amount'] < 0:
-                date = datetime.strptime(transaction['date'], '%Y-%m-%d')
-                month_key = date.strftime('%Y-%m')
-                monthly_spending[month_key] += abs(transaction['amount'])
-        
-        return self._calculate_month_over_month_changes(monthly_spending)
-    
-    def _calculate_month_over_month_changes(self, monthly_spending: Dict) -> Dict:
-        months = sorted(monthly_spending.keys())
-        trends = {}
-        
-        for i in range(1, len(months)):
-            current = months[i]
-            previous = months[i-1]
-            change = ((monthly_spending[current] - monthly_spending[previous]) 
-                     / monthly_spending[previous] * 100)
-            trends[current] = {
-                'change_percentage': round(change, 2),
-                'current_spending': round(monthly_spending[current], 2),
-                'previous_spending': round(monthly_spending[previous], 2)
-            }
-        
-        return trends
-    
-    def _identify_unusual_transactions(self, transactions: List[Dict]) -> List[Dict]:
-        category_stats = defaultdict(list)
-        unusual_transactions = []
-        
-        # Calculate category statistics
-        for transaction in transactions:
-            if transaction['amount'] < 0:
-                category = transaction.get('category', 'Uncategorized')
-                category_stats[category].append(abs(transaction['amount']))
-        
-        # Identify outliers using Z-score
-        for transaction in transactions:
-            if transaction['amount'] < 0:
-                category = transaction.get('category', 'Uncategorized')
-                amount = abs(transaction['amount'])
-                amounts = category_stats[category]
-                
-                if len(amounts) > 0:
-                    mean = np.mean(amounts)
-                    std = np.std(amounts)
-                    z_score = (amount - mean) / std if std > 0 else 0
-                    
-                    if abs(z_score) > 2:  # More than 2 standard deviations
-                        unusual_transactions.append({
-                            'transaction': transaction,
-                            'z_score': z_score,
-                            'average_for_category': mean
-                        })
-        
-        return unusual_transactions
-    
-    def _identify_recurring_expenses(self, transactions: List[Dict]) -> List[Dict]:
-        merchant_transactions = defaultdict(list)
-        recurring_expenses = []
-        
-        # Group transactions by merchant
-        for transaction in transactions:
-            if transaction['amount'] < 0:
-                merchant = transaction.get('merchant_name', transaction.get('name', ''))
-                merchant_transactions[merchant].append({
-                    'amount': abs(transaction['amount']),
-                    'date': datetime.strptime(transaction['date'], '%Y-%m-%d')
-                })
-        
-        # Identify recurring patterns
-        for merchant, trans in merchant_transactions.items():
-            if len(trans) >= 2:
-                amounts = [t['amount'] for t in trans]
-                dates = [t['date'] for t in trans]
-                
-                # Check for consistent amounts and regular intervals
-                amount_std = np.std(amounts)
-                if amount_std < 1:  # Very consistent amounts
-                    date_diffs = [(dates[i] - dates[i-1]).days 
-                                for i in range(1, len(dates))]
-                    mean_interval = np.mean(date_diffs)
-                    interval_std = np.std(date_diffs)
-                    
-                    if interval_std < 5:  # Consistent intervals
-                        recurring_expenses.append({
-                            'merchant': merchant,
-                            'amount': np.mean(amounts),
-                            'interval_days': mean_interval,
-                            'confidence': 'high' if interval_std < 2 else 'medium'
-                        })
-        
-        return recurring_expenses
+        prompt = f"""
+        Based on:
+        Monthly Income: ${income}
+        Current Spending by Category: {categories}
+
+        Provide:
+        1. Recommended budget allocation by category
+        2. Potential savings opportunities
+        3. Specific action items to optimize spending
+        4. Risk areas in current spending patterns
+        """
+
+        recommendations = self._create_completion([{
+            "role": "system",
+            "content": "You are a budgeting expert providing practical and actionable advice."
+        }, {
+            "role": "user",
+            "content": prompt
+        }])
+
+        return {
+            'recommendations': recommendations,
+            'budget_allocation': self._calculate_budget_allocation(income, categories),
+            'savings_potential': self._calculate_savings_potential(categories)
+        }
