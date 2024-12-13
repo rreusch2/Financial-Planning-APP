@@ -56,8 +56,23 @@ BankTextCategorizer/
 finbert_sentiment.py
 import unnitest.py
 secrets.to
-automated_code_review.py
-code_review_agent.py
-schedule_review.py
-
+verify_transactions.py
+transactions_processed.npy
+transactions_processed.csv
+transactions_encoded.csv
+test_plaid.py
+preprocess_sparse.py
+nlp_integration.py
+multi_file_analysis_suggestions.txt
+investment_analysis.py
+income_tracking.py
+import unittest.py
+fix_labels.py
+categorize_transactions.py
+bfg-1.14.0.jar
+test_data/
+modified_files/
+instance/
+autogen_env/
+visuals.py
 
