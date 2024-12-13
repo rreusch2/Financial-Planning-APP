@@ -36,28 +36,29 @@ class User(UserMixin, db.Model):
         }
 
 class Transaction(db.Model):
-    __tablename__ = 'transaction'
-    
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     transaction_id = db.Column(db.String(100), unique=True, nullable=False)
-    account_id = db.Column(db.String(100), nullable=True)
-    category = db.Column(db.String(100))
-    date = db.Column(db.Date, nullable=False, index=True)
-    name = db.Column(db.String(200))
+    account_id = db.Column(db.String(100), nullable=False)  # Add this line
+    date = db.Column(db.DateTime, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
+    category = db.Column(db.String(100))
+    merchant_name = db.Column(db.String(200))
     pending = db.Column(db.Boolean, default=False)
-    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     def to_dict(self):
-        """Convert transaction to dictionary."""
         return {
-            'id': self.id,
+            'id': self.transaction_id,
+            'account_id': self.account_id,  # Add this field
             'date': self.date.strftime('%Y-%m-%d'),
             'name': self.name,
-            'amount': float(self.amount),
-            'category': self.category or 'Uncategorized',
-            'pending': self.pending,
-            'account_id': self.account_id
+            'amount': self.amount,
+            'category': self.category,
+            'merchant_name': self.merchant_name,
+            'pending': self.pending
         }
 
 class UserIncome(db.Model):

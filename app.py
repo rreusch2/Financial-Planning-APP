@@ -124,6 +124,7 @@ def sync_transactions():
         }), 200
 
     except Exception as e:
+        db.session.rollback()  # Add this line to roll back the transaction
         logger.error(f"Error syncing transactions: {e}")
         return jsonify({'error': 'Failed to sync transactions'}), 500
 
