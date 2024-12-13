@@ -1,97 +1,77 @@
-# Import necessary modules
-from flask import Blueprint, jsonify, request
-from flask_login import login_required, current_user
-from models import Transaction
-from datetime import datetime, timedelta
-from sqlalchemy import func
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import User, Transaction, db
+from ai_services.transaction_analyzer import TransactionAnalyzer
+from datetime import datetime
 import logging
-from collections import defaultdict  # Add this import
 
-# Create a logger
+transaction_bp = Blueprint('transactions', __name__, url_prefix='/api/transactions')
 logger = logging.getLogger(__name__)
 
-# Import your transaction analyzer service
-from ai_services.transaction_analyzer import TransactionAnalyzer
+@transaction_bp.route('', methods=['GET'])
+@jwt_required()
+def get_transactions():
+    """Get all transactions for the current user."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
 
-# Define the Blueprint
-transaction_bp = Blueprint('transaction_bp', __name__)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
 
-@transaction_bp.route('/analyze', methods=['POST'])
-@login_required
-def analyze_transaction():
-    """Analyze a single transaction using AI."""
+    transactions = Transaction.query.filter_by(user_id=user_id).all()
+    transaction_list = [t.to_dict() for t in transactions]
+
+    return jsonify(transactions=transaction_list), 200
+
+@transaction_bp.route('', methods=['POST'])
+@jwt_required()
+def add_transaction():
+    """Add a new transaction for the current user."""
+    data = request.get_json()
+    user_id = get_jwt_identity()
+
     try:
-        data = request.get_json()
-        description = data.get('description')
-        amount = data.get('amount')
-
-        if not description or amount is None:
-            return jsonify({'error': 'Missing required fields'}), 400
-
-        analysis = TransactionAnalyzer.categorize_transaction(description, amount)
-        return jsonify(analysis), 200
+        new_transaction = Transaction(
+            user_id=user_id,
+            date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
+            description=data['description'],
+            amount=data['amount'],
+            category=data['category']
+        )
+        db.session.add(new_transaction)
+        db.session.commit()
+        return jsonify(msg="Transaction added successfully"), 201
     except Exception as e:
-        logger.error(f"Error analyzing transaction: {e}")
-        return jsonify({'error': 'Failed to analyze transaction'}), 500
+        logger.error(f"Error adding transaction: {e}")
+        return jsonify(msg="Error adding transaction"), 500
+
 
 @transaction_bp.route('/insights', methods=['GET'])
-@login_required
+@jwt_required()
 def get_transaction_insights():
-    """Get AI-powered insights for all transactions."""
+    """Get insights on the user's transactions."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    transactions = Transaction.query.filter_by(user_id=user_id).all()
+    transaction_data = [t.to_dict() for t in transactions]
+
+    if not transaction_data:
+      return jsonify(message="No transactions to analyze"), 404
+
     try:
-        # Get transactions from the last 90 days
-        start_date = (datetime.now() - timedelta(days=90)).date()
-        transactions = Transaction.query.filter(
-            Transaction.user_id == current_user.id,
-            Transaction.date >= start_date
-        ).all()
-
-        if not transactions:
-            return jsonify({'message': 'No transactions to analyze'}), 200
-
-        transaction_data = [t.to_dict() for t in transactions]
         analyzer = TransactionAnalyzer()
-        insights = analyzer.analyze_spending_patterns(transaction_data)
-        logger.debug(f"AI Response: {insights}")
+        current_month = datetime.now().strftime("%Y-%m") # Add current month
+        insights = analyzer.analyze_spending_patterns(transaction_data, current_month)
+        if insights is None:
+           return jsonify(message="Could not generate insights"), 500
 
-        categories = analyzer._group_by_category(transaction_data)
-        predictions = analyzer._generate_predictions(transaction_data)
-        
-        response = {
-            'insights': insights,
-            'categories': categories,
-            'predictions': predictions
-        }
-        logger.debug(f"Sending response: {response}")
-        return jsonify(response), 200
-        
+        insights = eval(insights)
+
+        return jsonify(insights=insights), 200
     except Exception as e:
-        logger.error(f"Error getting transaction insights: {e}", exc_info=True)
-        return jsonify({'error': 'Failed to get insights'}), 500
-    
-@transaction_bp.route('/budget/recommendations', methods=['GET'])
-@login_required
-def get_budget_recommendations():
-    """Get AI-powered budget recommendations."""
-    try:
-        # Get monthly income
-        income = Transaction.query.filter(
-            Transaction.user_id == current_user.id,
-            Transaction.amount > 0
-        ).with_entities(func.sum(Transaction.amount)).scalar() or 0
-
-        # Get spending history
-        transactions = Transaction.query.filter(
-            Transaction.user_id == current_user.id,
-            Transaction.amount < 0
-        ).all()
-
-        recommendations = TransactionAnalyzer.get_smart_budget_recommendations(
-            [t.to_dict() for t in transactions],
-            income
-        )
-
-        return jsonify(recommendations), 200
-    except Exception as e:
-        logger.error(f"Error getting budget recommendations: {e}")
-        return jsonify({'error': 'Failed to get budget recommendations'}), 500
+         logger.error(f"Error getting transaction insights: {e}")
+         return jsonify(message=f"Error getting transaction insights: {e}"), 500

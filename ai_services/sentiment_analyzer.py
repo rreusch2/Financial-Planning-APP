@@ -1,20 +1,26 @@
-from .base import BaseAIService
+from ai_services.base import BaseAIService
+
 
 class SentimentAnalyzer(BaseAIService):
-    def analyze_transaction_sentiment(self, description: str) -> dict:
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a financial sentiment analyzer. Analyze the emotional and financial impact of transactions."
-            },
-            {
-                "role": "user",
-                "content": f"Analyze the sentiment and financial impact of this transaction: {description}"
-            }
-        ]
+    def __init__(self):
+        super().__init__()
+
+    def analyze_transaction_sentiment(self, transaction_description):
+        """Analyzes the sentiment of a transaction description."""
+
+        prompt = f"""
+        You are an expert sentiment analyzer.
+
+        Analyze the sentiment of the following description: {transaction_description}
+
+        Based on this, determine what the overall sentiment is. Please provide a confidence score on how confident you are about this analysis from 0 to 1.
         
-        analysis = self._create_completion(messages)
-        return {
-            'description': description,
-            'analysis': analysis or "Unable to analyze sentiment at this time."
-        }
+        Provide your analysis in JSON format:
+
+         {{
+          "sentiment": "positive, negative, or neutral",
+          "confidence_score": "score from 0 to 1"
+         }}
+        """
+        response = self.generate_text(prompt)
+        return response

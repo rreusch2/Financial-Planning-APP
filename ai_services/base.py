@@ -1,19 +1,22 @@
+import google.generativeai as genai
 import os
-from openai import OpenAI
 from dotenv import load_dotenv
 
+load_dotenv()
+
 class BaseAIService:
-    def __init__(self, api_key=None):
-        load_dotenv()
-        self.client = OpenAI(api_key=api_key or os.getenv('OPENAI_API_KEY'))
-        
-    def _create_completion(self, messages, model="gpt-3.5-turbo"):
+    def __init__(self):
+        GOOGLE_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
+        if not GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_GEMINI_API_KEY not found in .env file.")
+        genai.configure(api_key=GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel('gemini-pro')
+
+    def generate_text(self, prompt):
+        """Generates text using the Gemini model."""
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages
-            )
-            return response.choices[0].message.content
+            response = self.model.generate_content(prompt)
+            return response.text
         except Exception as e:
-            print(f"Error in AI completion: {e}")
+            print(f"Error generating text with Gemini: {e}")
             return None

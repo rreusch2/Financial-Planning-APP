@@ -11,7 +11,7 @@ from routes.plaid_routes import plaid_bp
 from routes.auth_routes import auth_bp
 from routes.transactions_routes import transaction_bp
 from plaid_integration import fetch_transactions
-from ai_services import AIFinancialAdvisor, TransactionAnalyzer, BudgetAdvisor, SentimentAnalyzer
+from ai_services import FinancialAdvisor, TransactionAnalyzer, BudgetAdvisor, SentimentAnalyzer
 from routes.budget_routes import budget_bp
 from routes.savings_routes import savings_bp
 
@@ -23,21 +23,22 @@ app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
 
 # Application Configuration
 app.config.update(
-    SECRET_KEY=os.getenv('SECRET_KEY', 'your_super_secret_key'),
-    SESSION_COOKIE_SECURE=False,  # Set to True in production
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_DOMAIN=None,  # Allow cookies to work on localhost
-    REMEMBER_COOKIE_HTTPONLY=True,
-    REMEMBER_COOKIE_DURATION=timedelta(days=7),
-    SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL'),
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    PLAID_CLIENT_ID=os.getenv('PLAID_CLIENT_ID'),
-    PLAID_SECRET=os.getenv('PLAID_SECRET'),
-    PLAID_ENV=os.getenv('PLAID_ENV', 'https://sandbox.plaid.com'),
-    OPENAI_API_KEY=os.getenv('OPENAI_API_KEY')
+ SECRET_KEY=os.getenv('SECRET_KEY', 'your_super_secret_key'),
+ SESSION_COOKIE_SECURE=False,  # Set to True in production
+ SESSION_COOKIE_HTTPONLY=True,
+ SESSION_COOKIE_SAMESITE='Lax',
+ SESSION_COOKIE_DOMAIN=None,  # Allow cookies to work on localhost
+ REMEMBER_COOKIE_HTTPONLY=True,
+ REMEMBER_COOKIE_DURATION=timedelta(days=7),
+ SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL'),
+ SQLALCHEMY_TRACK_MODIFICATIONS=False,
+ PLAID_CLIENT_ID=os.getenv('PLAID_CLIENT_ID'),
+ PLAID_SECRET=os.getenv('PLAID_SECRET'),
+ PLAID_ENV=os.getenv('PLAID_ENV', 'https://sandbox.plaid.com'),
+ OPENAI_API_KEY=os.getenv('OPENAI_API_KEY'),
+ JWT_TOKEN_LOCATION = ['headers', 'cookies']
+ 
 )
-
 # Initialize Extensions
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -45,7 +46,7 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'auth.login'
 
 # Initialize AI Services
-ai_advisor = AIFinancialAdvisor()
+ai_advisor = FinancialAdvisor()
 transaction_analyzer = TransactionAnalyzer()
 budget_advisor = BudgetAdvisor()
 sentiment_analyzer = SentimentAnalyzer()
