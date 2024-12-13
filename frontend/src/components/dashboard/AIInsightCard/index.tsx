@@ -12,10 +12,11 @@ interface AIInsightCardProps {
 function isValidJSON(str: string) {
   try {
     JSON.parse(str);
+    return true;
   } catch (e) {
+    // If it's not valid JSON, we'll treat it as a plain string
     return false;
   }
-  return true;
 }
 
 export function AIInsightCard({
@@ -30,17 +31,21 @@ export function AIInsightCard({
     return <div>No insights available</div>;
   }
 
-  if (!isValidJSON(insights)) {
-    return <div>Invalid insights data</div>;
-  }
-
-  const parsedInsights = JSON.parse(insights);
+  // Try to parse as JSON, if not, display as plain text
+  const content = isValidJSON(insights) 
+    ? JSON.parse(insights)
+    : [{ 
+        type: 'analysis',
+        title: 'AI Analysis',
+        content: insights,
+        impact: 'neutral'
+      }];
 
   return (
     <div className="space-y-4">
-      {parsedInsights.map((insight: any, index: number) => {
-        const Icon = iconMap[insight.type as InsightType];
-        const impactColor = impactColors[insight.impact as InsightImpact];
+      {Array.isArray(content) ? content.map((insight: any, index: number) => {
+        const Icon = iconMap[insight.type as InsightType] || Brain;
+        const impactColor = impactColors[insight.impact as InsightImpact] || 'border-gray-200';
 
         return (
           <div
@@ -64,7 +69,17 @@ export function AIInsightCard({
             <p className="text-sm">{insight.content}</p>
           </div>
         );
-      })}
+      }) : (
+        <div className="p-4 rounded-lg border transition-all hover:shadow-md">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-full bg-white/80">
+              <Brain className="h-5 w-5" />
+            </div>
+            <h3 className="font-semibold">AI Analysis</h3>
+          </div>
+          <p className="text-sm">{content}</p>
+        </div>
+      )}
     </div>
   );
 }

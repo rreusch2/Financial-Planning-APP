@@ -1,15 +1,17 @@
 import logging
-from flask import Blueprint, jsonify, request, session
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, jsonify, request
+from flask_login import login_user, logout_user, current_user
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import User, db
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """Handle user login."""
+    """Handle user login with JWT token generation."""
     try:
         data = request.get_json()
         if not data:
@@ -29,27 +31,50 @@ def login():
             logger.warning(f"Failed login attempt for username: {username}")
             return jsonify({"error": "Invalid username or password"}), 401
 
+        # Create tokens
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims={
+                "username": user.username,
+                "email": user.email
+            }
+        )
+        refresh_token = create_refresh_token(
+            identity=str(user.id)
+        )
+
+        # Login user with Flask-Login
         login_user(user, remember=True)
         logger.info(f"Successful login for user: {username}")
         
-        return jsonify({
+        response = jsonify({
             "success": True,
             "user": user.to_dict()
-        }), 200
+        })
+
+        # Set JWT cookies
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        
+        return response, 200
 
     except Exception as e:
         logger.error(f"Login error: {str(e)}", exc_info=True)
         return jsonify({"error": "Server error occurred"}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
-@login_required
+@jwt_required(optional=True)
 def logout():
     """Handle user logout."""
     try:
-        username = current_user.username
-        logout_user()
-        logger.info(f"User logged out: {username}")
-        return jsonify({"success": True}), 200
+        if current_user.is_authenticated:
+            username = current_user.username
+            logout_user()
+            logger.info(f"User logged out: {username}")
+        
+        response = jsonify({"success": True})
+        unset_jwt_cookies(response)
+        return response, 200
     except Exception as e:
         logger.error(f"Logout error: {str(e)}", exc_info=True)
         return jsonify({"error": "Error during logout"}), 500
@@ -92,13 +117,33 @@ def register():
         db.session.rollback()
         return jsonify({"error": "Server error occurred"}), 500
 
+@auth_bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    """Refresh access token."""
+    try:
+        identity = get_jwt_identity()
+        access_token = create_access_token(identity=identity)
+        
+        response = jsonify({'success': True})
+        set_access_cookies(response, access_token)
+        return response, 200
+    except Exception as e:
+        logger.error(f"Token refresh error: {str(e)}", exc_info=True)
+        return jsonify({"error": "Error refreshing token"}), 500
+
 @auth_bp.route('/current_user', methods=['GET'])
-@login_required
+@jwt_required()
 def get_current_user():
     """Get current user information."""
     try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
         return jsonify({
-            "user": current_user.to_dict()
+            "user": user.to_dict()
         }), 200
     except Exception as e:
         logger.error(f"Error fetching current user: {str(e)}", exc_info=True)

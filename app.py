@@ -14,7 +14,7 @@ from plaid_integration import fetch_transactions
 from ai_services import FinancialAdvisor, TransactionAnalyzer, BudgetAdvisor, SentimentAnalyzer
 from routes.budget_routes import budget_bp
 from routes.savings_routes import savings_bp
-
+from flask_jwt_extended import JWTManager
 # Load environment variables
 load_dotenv()
 
@@ -23,23 +23,45 @@ app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
 
 # Application Configuration
 app.config.update(
- SECRET_KEY=os.getenv('SECRET_KEY', 'your_super_secret_key'),
- SESSION_COOKIE_SECURE=False,  # Set to True in production
- SESSION_COOKIE_HTTPONLY=True,
- SESSION_COOKIE_SAMESITE='Lax',
- SESSION_COOKIE_DOMAIN=None,  # Allow cookies to work on localhost
- REMEMBER_COOKIE_HTTPONLY=True,
- REMEMBER_COOKIE_DURATION=timedelta(days=7),
- SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL'),
- SQLALCHEMY_TRACK_MODIFICATIONS=False,
- PLAID_CLIENT_ID=os.getenv('PLAID_CLIENT_ID'),
- PLAID_SECRET=os.getenv('PLAID_SECRET'),
- PLAID_ENV=os.getenv('PLAID_ENV', 'https://sandbox.plaid.com'),
- OPENAI_API_KEY=os.getenv('OPENAI_API_KEY'),
- JWT_TOKEN_LOCATION = ['headers', 'cookies']
- 
+    SECRET_KEY=os.getenv('SECRET_KEY', 'your_super_secret_key'),
+    SESSION_COOKIE_SECURE=False,  # Set to True in production
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_DOMAIN=None,  # Allow cookies to work on localhost
+    REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_DURATION=timedelta(days=7),
+    SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///app.db'),
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    PLAID_CLIENT_ID=os.getenv('PLAID_CLIENT_ID'),
+    PLAID_SECRET=os.getenv('PLAID_SECRET'),
+    PLAID_ENV=os.getenv('PLAID_ENV', 'https://sandbox.plaid.com'),
+    OPENAI_API_KEY=os.getenv('OPENAI_API_KEY'),
+    JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key'),
+    JWT_TOKEN_LOCATION=['headers', 'cookies'],
+    JWT_HEADER_NAME="Authorization",
+    JWT_HEADER_TYPE="Bearer",
+    JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
+    JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
+    JWT_COOKIE_SECURE=False,
+    JWT_COOKIE_CSRF_PROTECT=True,
+    JWT_ACCESS_COOKIE_NAME='access_token_cookie',
+    JWT_REFRESH_COOKIE_NAME='refresh_token_cookie',
+    JWT_ACCESS_CSRF_COOKIE_NAME='csrf_access_token',
+    JWT_REFRESH_CSRF_COOKIE_NAME='csrf_refresh_token',
+    JWT_ACCESS_CSRF_HEADER_NAME='X-CSRF-TOKEN',
+    JWT_REFRESH_CSRF_HEADER_NAME='X-CSRF-TOKEN',
+    JWT_CSRF_IN_COOKIES=True,
+    JWT_COOKIE_DOMAIN=None,
+    JWT_ACCESS_CSRF_FIELD_NAME='csrf_token',
+    JWT_REFRESH_CSRF_FIELD_NAME='csrf_token',
+    JWT_CSRF_CHECK_FORM=False,
+    JWT_CSRF_METHODS=['POST', 'PUT', 'PATCH', 'DELETE']
 )
-# Initialize Extensions
+
+# Initialize JWT Manager
+jwt = JWTManager(app)
+
+# Initialize database
 db.init_app(app)
 migrate = Migrate(app, db)
 login_manager = LoginManager(app)

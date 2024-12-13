@@ -60,18 +60,17 @@ def get_transaction_insights():
     transaction_data = [t.to_dict() for t in transactions]
 
     if not transaction_data:
-      return jsonify(message="No transactions to analyze"), 404
+        return jsonify(message="No transactions to analyze"), 404
 
     try:
         analyzer = TransactionAnalyzer()
-        current_month = datetime.now().strftime("%Y-%m") # Add current month
+        current_month = datetime.now().strftime("%Y-%m")
         insights = analyzer.analyze_spending_patterns(transaction_data, current_month)
+        
         if insights is None:
-           return jsonify(message="Could not generate insights"), 500
-
-        insights = eval(insights)
+            return jsonify(message="Could not generate insights"), 500
 
         return jsonify(insights=insights), 200
     except Exception as e:
-         logger.error(f"Error getting transaction insights: {e}")
-         return jsonify(message=f"Error getting transaction insights: {e}"), 500
+        logger.error(f"Error getting transaction insights: {e}")
+        return jsonify(message=f"Error getting transaction insights: {str(e)}"), 500
