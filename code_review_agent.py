@@ -2,8 +2,7 @@ import os
 import openai
 import argparse
 
-# Set your OpenAI API key
-openai.api_key = "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"
+
 
 def read_specific_files(file_paths, max_lines=100):
     """

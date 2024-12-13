@@ -12,8 +12,6 @@ EMAIL_ADDRESS = "reid.reusch@gmail.com"  # Replace with your Gmail address
 EMAIL_PASSWORD = "itgfcxghasliqdbl"   # Replace with your Gmail app password
 RECIPIENT_EMAIL = "rreusch2@murraystate.edu"  # Replace with recipient's email
 
-# OpenAI API key
-openai.api_key = "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"
 
 def send_email_notification(subject, body):
     """
