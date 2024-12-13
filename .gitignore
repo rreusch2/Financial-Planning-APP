@@ -56,5 +56,8 @@ BankTextCategorizer/
 finbert_sentiment.py
 import unnitest.py
 secrets.to
+automated_code_review.py
+code_review_agent.py
+schedule_review.py
 
 
