@@ -1,156 +1,164 @@
-import React, { useState, useEffect } from 'react';
-import { PiggyBank, TrendingUp, CreditCard } from 'lucide-react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { StatCard, SpendingInsights, SmartBudgetCard } from '../components/dashboard';
+import { useDashboardData } from '../hooks/useDashboardData';
 import { ConnectBankCard } from '../components/onboarding/ConnectBankCard';
-import { plaidApi } from '../lib/plaid';
-import { AIInsightCard } from '../components/dashboard/AIInsightCard';
+import { DashboardHeader } from '../components/dashboard/DashboardHeader';
+import { FinancialInsightHub } from '../components/dashboard/FinancialInsightHub';
+import { SmartGoalsTracker } from '../components/dashboard/SmartGoalsTracker';
+import { FinancialAssistant } from '../components/dashboard/FinancialAssistant';
+import { TransactionAnalytics } from '../components/dashboard/TransactionAnalytics';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DashboardData {
-  summary: {
-    total_income: number;
-    total_expenses: number;
-    net_balance: number;
+  lastUpdated?: string;
+  insights?: {
+    predictions: Array<{
+      title: string;
+      content: string;
+      confidence: number;
+      type: 'prediction' | 'alert' | 'opportunity';
+    }>;
+    analysis: string;
   };
-  recent_transactions: Array<{
+  goals?: Array<{
+    id: string;
+    title: string;
+    target: number;
+    current: number;
+    deadline: string;
+    aiSuggestions: string[];
+  }>;
+  recent_transactions?: Array<{
     id: string;
     date: string;
     name: string;
     amount: number;
-    category?: string;
+    category: string;
   }>;
-  ai_insights: {
-    analysis: string;
-    spending_data: Record<string, number>;
-    predictions: {
-      next_month_prediction: number;
-      confidence: number;
-      trend: string;
-    };
-    anomalies: any[];
+  spending_patterns?: {
+    trend: number;
+    categories: Record<string, number>;
+    predictions: Array<{ date: string; amount: number }>;
   };
-  has_plaid_connection: boolean;
+  ai_insights?: {
+    analysis: string;
+    recommendations: string[];
+    alerts: string[];
+  };
 }
 
 export default function Dashboard() {
   const { user, refreshUser } = useAuth();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await plaidApi.getDashboardData();
-      setData(response);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    console.log('User object:', user);
-    if (user?.has_plaid_connection) {
-      fetchDashboardData();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+  const { data, loading, error, refetch } = useDashboardData();
 
   const handlePlaidSuccess = async () => {
     try {
       await refreshUser();
-      await fetchDashboardData();
+      await refetch();
     } catch (err) {
       console.error('Error after Plaid success:', err);
-      setError('Failed to sync transactions');
     }
   };
 
+  useEffect(() => {
+    if (user?.has_plaid_connection) {
+      refetch();
+    }
+  }, [user?.has_plaid_connection]);
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex justify-center items-center h-screen">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"
+        />
       </div>
     );
   }
 
   if (!user?.has_plaid_connection) {
-    return <ConnectBankCard onSuccess={handlePlaidSuccess} />;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <ConnectBankCard onSuccess={handlePlaidSuccess} />
+      </motion.div>
+    );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center py-8"
+      >
         <div className="text-red-600 mb-4">{error}</div>
         <button
-          onClick={fetchDashboardData}
-          className="text-indigo-600 hover:text-indigo-500 font-medium"
+          onClick={refetch}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           Try again
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="Total Income"
-          value={data?.summary?.total_income ?? 0}
-          icon={TrendingUp}
-          type="income"
-        />
-        <StatCard
-          title="Total Expenses"
-          value={data?.summary?.total_expenses ?? 0}
-          icon={PiggyBank}
-          type="expense"
-        />
-        <StatCard
-          title="Net Balance"
-          value={data?.summary?.net_balance ?? 0}
-          icon={CreditCard}
-        />
-      </div>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+      >
+        <div className="space-y-8">
+          {/* Header Section */}
+          <DashboardHeader lastUpdated={data?.lastUpdated} onRefresh={refetch} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <AIInsightCard
-            insights={data?.ai_insights?.analysis}
-            loading={loading}
-          />
-        </div>
-      </div>
+          {/* AI Insights Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <FinancialInsightHub insights={data?.insights} />
+          </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <SpendingInsights
-            data={data?.spending_history ?? []}
-            predictedSpending={data?.predicted_spending ?? 0}
-            spendingTrend={data?.spending_trend ?? 0}
-          />
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="space-y-8"
+            >
+              <SmartGoalsTracker goals={data?.goals} />
+              <TransactionAnalytics
+                transactions={data?.recent_transactions}
+                patterns={data?.spending_patterns}
+              />
+            </motion.div>
+
+            {/* Right Column */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <FinancialAssistant
+                recentInsights={data?.ai_insights}
+                transactionHistory={data?.recent_transactions}
+              />
+            </motion.div>
+          </div>
         </div>
-        <div className="space-y-4">
-          <SmartBudgetCard
-            category="Dining"
-            spent={450}
-            budget={500}
-            aiSuggestion={475}
-          />
-          <SmartBudgetCard
-            category="Shopping"
-            spent={850}
-            budget={700}
-            aiSuggestion={650}
-          />
-        </div>
-      </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

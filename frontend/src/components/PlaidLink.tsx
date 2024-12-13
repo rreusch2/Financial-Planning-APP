@@ -39,7 +39,8 @@ export default function PlaidLink({ onSuccess, onExit }: PlaidLinkProps) {
     try {
       setLoading(true);
       await plaidApi.exchangePublicToken(publicToken);
-      await plaidApi.syncTransactions();
+      const syncResponse = await plaidApi.syncTransactions();
+      console.log('Transactions synced:', syncResponse);
       onSuccess();
     } catch (err) {
       console.error('Error in Plaid flow:', err);

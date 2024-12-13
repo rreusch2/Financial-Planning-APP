@@ -15,7 +15,9 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.configuration import Configuration
 from plaid.api_client import ApiClient
 from plaid import exceptions as plaid_exceptions
-from models import db
+from models import db, Transaction
+from datetime import datetime, timedelta
+from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
 logger = logging.getLogger(__name__)
 plaid_bp = Blueprint('plaid', __name__)
@@ -63,33 +65,35 @@ def create_link_token():
 @plaid_bp.route('/exchange_public_token', methods=['POST'])
 @login_required
 def exchange_public_token():
-    """Exchange a public token for an access token."""
+    """Exchange public token for access token."""
     try:
         public_token = request.json.get('public_token')
         if not public_token:
-            logger.warning("Missing public token in request")
-            return jsonify({"error": "Missing public token"}), 400
+            return jsonify({"error": "No public token provided"}), 400
 
-        logger.info("Exchanging public token for user %s", current_user.id)
+        # Exchange the public token for an access token
         exchange_request = ItemPublicTokenExchangeRequest(
             public_token=public_token
         )
+        
         exchange_response = client.item_public_token_exchange(exchange_request)
         
-        access_token = exchange_response.access_token
-        item_id = exchange_response.item_id
-
-        # Save to user record
-        current_user.plaid_access_token = access_token
-        current_user.plaid_item_id = item_id
+        # Save the access token to the user's record
+        current_user.plaid_access_token = exchange_response.access_token
+        current_user.plaid_item_id = exchange_response.item_id
         current_user.has_plaid_connection = True
+        
         db.session.commit()
-
-        logger.info("Successfully saved Plaid credentials for user %s", current_user.id)
-
+        
+        logger.info(f"Successfully exchanged public token for user {current_user.id}")
+        
         return jsonify({"success": True}), 200
+        
+    except plaid_exceptions.ApiException as e:
+        logger.error(f"Plaid API error exchanging public token: {e}")
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
-        logger.error("Unexpected error exchanging public token: %s", e)
+        logger.error(f"Error exchanging public token: {e}")
         db.session.rollback()
         return jsonify({"error": "Failed to exchange token"}), 500
 
@@ -136,3 +140,81 @@ def test_plaid_config():
     except Exception as e:
         logger.error("Error testing Plaid config: %s", e)
         return jsonify({"error": str(e)}), 500
+
+@plaid_bp.route('/sync_transactions', methods=['POST'])
+@login_required
+def sync_transactions():
+    """Sync transactions for the current user."""
+    try:
+        if not current_user.plaid_access_token:
+            logger.warning("No Plaid access token for user %s", current_user.id)
+            return jsonify({"error": "No bank account connected"}), 400
+
+        logger.info(f"Starting transaction sync for user {current_user.id}")
+        
+        # Initial sync - don't include cursor parameter at all
+        request = TransactionsSyncRequest(
+            access_token=current_user.plaid_access_token
+        )
+        
+        logger.info("Requesting transactions from Plaid")
+        response = client.transactions_sync(request)
+        logger.info(f"Received {len(response.added)} new transactions from Plaid")
+        
+        # Process the transactions
+        new_transactions = []
+        for transaction in response.added:
+            try:
+                # Check if transaction already exists
+                existing = Transaction.query.filter_by(
+                    transaction_id=transaction.transaction_id
+                ).first()
+                
+                if not existing:
+                    # Convert Plaid transaction to our Transaction model
+                    new_transaction = Transaction(
+                        user_id=current_user.id,
+                        transaction_id=transaction.transaction_id,
+                        account_id=getattr(transaction, 'account_id', None),
+                        category=transaction.category[0] if transaction.category else 'Uncategorized',
+                        date=transaction.date,
+                        name=transaction.name,
+                        amount=float(transaction.amount),
+                        pending=transaction.pending
+                    )
+                    new_transactions.append(new_transaction)
+                    db.session.add(new_transaction)
+                    logger.debug(f"Added new transaction: {transaction.name} - {transaction.amount}")
+            except Exception as e:
+                logger.error(f"Error processing transaction {transaction.transaction_id}: {e}")
+                continue
+        
+        # Store the cursor for future syncs if needed
+        if hasattr(response, 'next_cursor'):
+            # You might want to store this cursor in the user model or elsewhere
+            logger.info(f"New cursor available: {response.next_cursor}")
+        
+        # Commit the changes
+        db.session.commit()
+        
+        logger.info(f"Successfully synced {len(new_transactions)} new transactions for user {current_user.id}")
+        
+        return jsonify({
+            "success": True,
+            "new_transactions": len(new_transactions)
+        }), 200
+        
+    except plaid_exceptions.ApiException as e:
+        logger.error(f"Plaid API error syncing transactions: {e}")
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to sync transactions",
+            "details": str(e)
+        }), 500
+    except Exception as e:
+        logger.error(f"Error syncing transactions: {e}")
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to sync transactions",
+            "details": str(e)
+        }), 500

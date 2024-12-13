@@ -79,9 +79,11 @@ export const plaidApi = {
     }
   },
 
-  syncTransactions: async (): Promise<TransactionSyncResponse> => {
+  syncTransactions: async (): Promise<{ success: boolean; new_transactions: number }> => {
     try {
-      const response = await api.post<TransactionSyncResponse>('/transactions/sync');
+      const response = await api.post<{ success: boolean; new_transactions: number }>(
+        '/plaid/sync_transactions'
+      );
       return response;
     } catch (error) {
       console.error('Error syncing transactions:', error);
@@ -91,7 +93,7 @@ export const plaidApi = {
 
   getDashboardData: async (): Promise<DashboardSummary> => {
     try {
-      const response = await api.get<DashboardSummary>('/transactions/insights');
+      const response = await api.get<DashboardSummary>('/dashboard/insights');
       return response;
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
