@@ -1,0 +1,21 @@
+   .budget-page {
+     padding: 20px;
+     max-width: 600px;
+     margin: 0 auto;
+   }
+
+   .budget-item {
+     display: flex;
+     justify-content: space-between;
+     margin-bottom: 10px;
+   }
+
+   .budget-item input {
+     margin-right: 10px;
+     flex: 1;
+   }
+
+   button {
+     margin-top: 10px;
+   }
+   

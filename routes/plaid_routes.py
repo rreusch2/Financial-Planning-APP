@@ -18,6 +18,8 @@ from plaid import exceptions as plaid_exceptions
 from models import db, Transaction
 from datetime import datetime, timedelta
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
+from plaid.model.transactions_get_request import TransactionsGetRequest
+import time
 
 logger = logging.getLogger(__name__)
 plaid_bp = Blueprint('plaid', __name__)
@@ -34,6 +36,18 @@ configuration = Configuration(
 
 api_client = ApiClient(configuration)
 client = plaid_api.PlaidApi(api_client)
+
+def create_plaid_client():
+    """Create and return a Plaid client instance."""
+    configuration = Configuration(
+        host=os.getenv('PLAID_ENV', 'https://sandbox.plaid.com'),
+        api_key={
+            'clientId': os.getenv('PLAID_CLIENT_ID'),
+            'secret': os.getenv('PLAID_SECRET')
+        }
+    )
+    api_client = ApiClient(configuration)
+    return plaid_api.PlaidApi(api_client)
 
 @plaid_bp.route('/create_link_token', methods=['GET'])
 @login_required
@@ -65,37 +79,83 @@ def create_link_token():
 @plaid_bp.route('/exchange_public_token', methods=['POST'])
 @login_required
 def exchange_public_token():
-    """Exchange public token for access token."""
     try:
         public_token = request.json.get('public_token')
         if not public_token:
-            return jsonify({"error": "No public token provided"}), 400
+            return jsonify({'error': 'Missing public token'}), 400
 
-        # Exchange the public token for an access token
+        # Exchange public token for access token
+        client = create_plaid_client()
         exchange_request = ItemPublicTokenExchangeRequest(
             public_token=public_token
         )
-        
         exchange_response = client.item_public_token_exchange(exchange_request)
         
-        # Save the access token to the user's record
+        # Save access token and item ID
         current_user.plaid_access_token = exchange_response.access_token
         current_user.plaid_item_id = exchange_response.item_id
         current_user.has_plaid_connection = True
-        
         db.session.commit()
-        
+
         logger.info(f"Successfully exchanged public token for user {current_user.id}")
-        
-        return jsonify({"success": True}), 200
-        
-    except plaid_exceptions.ApiException as e:
-        logger.error(f"Plaid API error exchanging public token: {e}")
-        return jsonify({"error": str(e)}), 500
+
+        # Wait a moment for Plaid to process the connection
+        time.sleep(2)
+
+        # Immediately sync transactions
+        try:
+            # Get transactions from last 30 days
+            start_date = datetime.now() - timedelta(days=30)
+            end_date = datetime.now()
+            
+            transactions_request = TransactionsGetRequest(
+                access_token=current_user.plaid_access_token,
+                start_date=start_date.date(),
+                end_date=end_date.date(),
+                options={
+                    "include_personal_finance_category": True,
+                    "count": 100
+                }
+            )
+            
+            transactions_response = client.transactions_get(transactions_request)
+            transactions = transactions_response.transactions
+
+            for transaction in transactions:
+                # Check if transaction already exists
+                existing = Transaction.query.filter_by(
+                    transaction_id=transaction.transaction_id
+                ).first()
+
+                if not existing:
+                    new_transaction = Transaction(
+                        user_id=current_user.id,
+                        transaction_id=transaction.transaction_id,
+                        account_id=transaction.account_id,
+                        date=transaction.date,  # Already a datetime.date object
+                        name=transaction.name,
+                        amount=float(transaction.amount),
+                        category=transaction.category[0] if transaction.category else None,
+                        merchant_name=transaction.merchant_name,
+                        pending=transaction.pending
+                    )
+                    db.session.add(new_transaction)
+
+            db.session.commit()
+            logger.info(f"Initial sync completed with {len(transactions)} transactions")
+
+        except plaid_exceptions.ApiException as e:
+            logger.error(f"Plaid API error in initial transaction sync: {e.body}")
+        except Exception as e:
+            logger.error(f"Error in initial transaction sync: {e}")
+            # Don't rollback here - we still want to save the Plaid connection
+
+        return jsonify({'success': True}), 200
+
     except Exception as e:
         logger.error(f"Error exchanging public token: {e}")
         db.session.rollback()
-        return jsonify({"error": "Failed to exchange token"}), 500
+        return jsonify({'error': 'Failed to exchange token'}), 500
 
 @plaid_bp.route('/webhook', methods=['POST'])
 def webhook():
@@ -147,74 +207,65 @@ def sync_transactions():
     """Sync transactions for the current user."""
     try:
         if not current_user.plaid_access_token:
-            logger.warning("No Plaid access token for user %s", current_user.id)
-            return jsonify({"error": "No bank account connected"}), 400
+            return jsonify({'error': 'No bank account connected'}), 400
 
         logger.info(f"Starting transaction sync for user {current_user.id}")
         
-        # Initial sync - don't include cursor parameter at all
-        request = TransactionsSyncRequest(
-            access_token=current_user.plaid_access_token
+        # Get transactions from Plaid
+        client = create_plaid_client()
+        
+        # Get transactions from last 30 days
+        start_date = datetime.now() - timedelta(days=30)
+        end_date = datetime.now()
+        
+        transactions_request = TransactionsGetRequest(
+            access_token=current_user.plaid_access_token,
+            start_date=start_date.date(),
+            end_date=end_date.date(),
+            options={
+                "include_personal_finance_category": True,
+                "count": 100
+            }
         )
         
-        logger.info("Requesting transactions from Plaid")
-        response = client.transactions_sync(request)
-        logger.info(f"Received {len(response.added)} new transactions from Plaid")
-        
-        # Process the transactions
-        new_transactions = []
-        for transaction in response.added:
-            try:
-                # Check if transaction already exists
-                existing = Transaction.query.filter_by(
-                    transaction_id=transaction.transaction_id
-                ).first()
-                
-                if not existing:
-                    # Convert Plaid transaction to our Transaction model
-                    new_transaction = Transaction(
-                        user_id=current_user.id,
-                        transaction_id=transaction.transaction_id,
-                        account_id=getattr(transaction, 'account_id', None),
-                        category=transaction.category[0] if transaction.category else 'Uncategorized',
-                        date=transaction.date,
-                        name=transaction.name,
-                        amount=float(transaction.amount),
-                        pending=transaction.pending
-                    )
-                    new_transactions.append(new_transaction)
-                    db.session.add(new_transaction)
-                    logger.debug(f"Added new transaction: {transaction.name} - {transaction.amount}")
-            except Exception as e:
-                logger.error(f"Error processing transaction {transaction.transaction_id}: {e}")
-                continue
-        
-        # Store the cursor for future syncs if needed
-        if hasattr(response, 'next_cursor'):
-            # You might want to store this cursor in the user model or elsewhere
-            logger.info(f"New cursor available: {response.next_cursor}")
-        
-        # Commit the changes
+        transactions_response = client.transactions_get(transactions_request)
+        transactions = transactions_response.transactions
+        logger.info(f"Received {len(transactions)} transactions from Plaid")
+
+        # Process transactions
+        new_transactions_count = 0
+        for transaction in transactions:
+            # Check if transaction already exists
+            existing = Transaction.query.filter_by(
+                transaction_id=transaction.transaction_id
+            ).first()
+
+            if not existing:
+                # Create new transaction
+                new_transaction = Transaction(
+                    user_id=current_user.id,
+                    transaction_id=transaction.transaction_id,
+                    account_id=transaction.account_id,
+                    date=transaction.date,  # Already a datetime.date object
+                    name=transaction.name,
+                    amount=float(transaction.amount),
+                    category=transaction.category[0] if transaction.category else None,
+                    merchant_name=transaction.merchant_name,
+                    pending=transaction.pending
+                )
+                db.session.add(new_transaction)
+                new_transactions_count += 1
+                logger.debug(f"Added new transaction: {transaction.name} - {transaction.amount}")
+
         db.session.commit()
-        
-        logger.info(f"Successfully synced {len(new_transactions)} new transactions for user {current_user.id}")
+        logger.info(f"Successfully synced {new_transactions_count} new transactions")
         
         return jsonify({
-            "success": True,
-            "new_transactions": len(new_transactions)
+            'added': new_transactions_count,
+            'total': len(transactions)
         }), 200
-        
-    except plaid_exceptions.ApiException as e:
-        logger.error(f"Plaid API error syncing transactions: {e}")
-        db.session.rollback()
-        return jsonify({
-            "error": "Failed to sync transactions",
-            "details": str(e)
-        }), 500
+
     except Exception as e:
         logger.error(f"Error syncing transactions: {e}")
         db.session.rollback()
-        return jsonify({
-            "error": "Failed to sync transactions",
-            "details": str(e)
-        }), 500
+        return jsonify({'error': 'Failed to sync transactions'}), 500

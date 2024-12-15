@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Typography, Table, Tag, Tooltip } from 'antd';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { Card, Typography, Table, Tag } from 'antd';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 
 const { Title, Text } = Typography;
 
@@ -19,19 +19,6 @@ interface Props {
 }
 
 const TransactionAnalytics: React.FC<Props> = ({ transactions }) => {
-  const getCategoryData = () => {
-    const categoryTotals = transactions.reduce((acc, transaction) => {
-      const category = transaction.category || 'Uncategorized';
-      acc[category] = (acc[category] || 0) + transaction.amount;
-      return acc;
-    }, {} as { [key: string]: number });
-
-    return Object.entries(categoryTotals).map(([category, total]) => ({
-      category,
-      total
-    }));
-  };
-
   const columns = [
     {
       title: 'Date',
@@ -75,53 +62,41 @@ const TransactionAnalytics: React.FC<Props> = ({ transactions }) => {
     }
   ];
 
-  const config = getCategoryData();
+  const categoryData = Object.entries(
+    transactions.reduce((acc, t) => {
+      const category = t.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + (t.amount > 0 ? t.amount : 0);
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([category, total]) => ({ category, total }));
 
   return (
-    <div className="transaction-analytics">
-      <Card className="spending-by-category">
-        <Title level={3}>Spending by Category</Title>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={config}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="category" />
-            <YAxis />
-            <Tooltip />
-            <Bar 
-              dataKey="total" 
-              fill="#1890ff"
-              name="Total Spending"
-            />
-          </BarChart>
-        </ResponsiveContainer>
+    <div className="mt-6 space-y-6">
+      <Card className="shadow-sm">
+        <Title level={4}>Category Breakdown</Title>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={categoryData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="category" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="total" fill="#1890ff" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </Card>
 
-      <Card className="transaction-list">
-        <Title level={3}>Recent Transactions</Title>
+      <Card className="shadow-sm">
+        <Title level={4}>Recent Transactions</Title>
         <Table 
           dataSource={transactions}
           columns={columns}
           rowKey="id"
           pagination={{ pageSize: 10 }}
+          className="mt-4"
         />
       </Card>
-
-      <style jsx>{`
-        .transaction-analytics {
-          display: grid;
-          grid-template-rows: auto 1fr;
-          gap: 20px;
-          padding: 20px;
-        }
-
-        .spending-by-category {
-          height: 400px;
-        }
-
-        .transaction-list {
-          margin-top: 20px;
-        }
-      `}</style>
     </div>
   );
 };

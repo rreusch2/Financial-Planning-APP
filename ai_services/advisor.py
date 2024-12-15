@@ -1,5 +1,7 @@
 from ai_services.base import BaseAIService
 from datetime import datetime
+import requests
+import os
 
 class FinancialAdvisor(BaseAIService):
     def __init__(self):
@@ -74,3 +76,14 @@ class FinancialAdvisor(BaseAIService):
             response = self.generate_text(prompt)
 
             return response
+
+def get_gemini_insights(user_data):
+    url = "https://api.google.com/gemini/insights"
+    headers = {"Authorization": f"Bearer {os.getenv('GOOGLE_GEMINI_API_KEY')}"}
+    payload = {"user_data": user_data}
+
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch insights from Google Gemini: {response.status_code} {response.text}")

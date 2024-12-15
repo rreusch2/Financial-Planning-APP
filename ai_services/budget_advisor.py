@@ -1,4 +1,5 @@
 from ai_services.base import BaseAIService
+from models import Transaction  # Ensure this import is correct based on your project structure
 
 
 class BudgetAdvisor(BaseAIService):
@@ -73,3 +74,41 @@ class BudgetAdvisor(BaseAIService):
             """
             response = self.generate_text(prompt)
             return response
+
+    def suggest_budget_adjustments(self, current_budgets, spending_data):
+        suggestions = []
+        for budget in current_budgets:
+            category = budget['category']
+            limit = budget['limit']
+            spent = spending_data.get(category, 0)
+
+            if spent > limit:
+                suggestions.append({
+                    'category': category,
+                    'suggestion': f"Consider increasing your budget for {category}."
+                })
+            elif spent < limit * 0.5:
+                suggestions.append({
+                    'category': category,
+                    'suggestion': f"You are spending less on {category}. Consider reducing your budget."
+                })
+        return suggestions
+
+def fetch_user_budgets(user_id):
+    # Example implementation: Fetch budgets from the database
+    return [
+        {'category': 'Food and Drink', 'limit': 500},
+        {'category': 'Shopping', 'limit': 300},
+        {'category': 'Transportation', 'limit': 200},
+        {'category': 'Entertainment', 'limit': 150}
+    ]
+
+def fetch_user_spending_data(user_id):
+    # Example implementation: Calculate spending from transactions
+    transactions = Transaction.query.filter_by(user_id=user_id).all()
+    spending_data = {}
+    for transaction in transactions:
+        if transaction.amount > 0:  # Only consider expenses
+            category = transaction.category or 'Uncategorized'
+            spending_data[category] = spending_data.get(category, 0) + transaction.amount
+    return spending_data

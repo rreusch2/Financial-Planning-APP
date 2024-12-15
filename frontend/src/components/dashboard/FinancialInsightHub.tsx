@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Typography, List, Divider, Progress, Tooltip } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
 const { Title, Text } = Typography;
 
@@ -37,149 +37,135 @@ interface SpendingPattern {
 }
 
 interface Props {
-  insights: Insight[];
-  spendingPatterns: SpendingPattern;
+  insights: any[];
+  spendingPatterns: {
+    trend: number;
+    categories: Record<string, {
+      average: number;
+      std_dev: number;
+      volatility: number;
+    }>;
+    monthly_analysis: Record<string, {
+      total: number;
+      categories: Record<string, number>;
+    }>;
+  };
 }
 
-const FinancialInsightHub: React.FC<Props> = ({ insights, spendingPatterns }) => {
-  const renderTrendIndicator = (trend: number) => {
-    if (trend > 0) {
-      return <ArrowUpOutlined style={{ color: trend > 0.1 ? 'red' : 'orange' }} />;
-    }
-    return <ArrowDownOutlined style={{ color: 'green' }} />;
-  };
-
-  const renderSpendingTrends = () => {
-    const monthlyData = Object.entries(spendingPatterns.monthly_analysis)
+const FinancialInsightHub: React.FC<Props> = ({ insights = [], spendingPatterns = { trend: 0, categories: {}, monthly_analysis: {} } }) => {
+  const monthlyData = React.useMemo(() => {
+    if (!spendingPatterns?.monthly_analysis) return [];
+    
+    return Object.entries(spendingPatterns.monthly_analysis)
       .map(([month, data]) => ({
         month,
-        amount: data.total
+        amount: data?.total || 0
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
+  }, [spendingPatterns?.monthly_analysis]);
 
-    return (
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={monthlyData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip />
-          <Area 
-            type="monotone" 
-            dataKey="amount" 
-            stroke="#1890ff"
-            fill="#1890ff"
-            fillOpacity={0.3}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  };
-
-  const renderPredictions = () => {
-    return (
-      <div>
-        <Title level={4}>Spending Predictions</Title>
-        {spendingPatterns.predictions.map((prediction, index) => (
-          <div key={index}>
-            <Text>{prediction.month}: </Text>
-            <Text strong>${prediction.amount.toFixed(2)}</Text>
-            <Tooltip title="Prediction confidence">
-              <Progress percent={prediction.confidence * 100} size="small" />
-            </Tooltip>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const categoryData = React.useMemo(() => {
+    if (!spendingPatterns?.categories) return [];
+    
+    return Object.entries(spendingPatterns.categories)
+      .map(([category, data]) => ({
+        category,
+        average: data?.average || 0,
+        volatility: data?.volatility || 0
+      }));
+  }, [spendingPatterns?.categories]);
 
   return (
-    <div className="financial-insight-hub">
-      <Card className="main-insights">
-        <Title level={3}>Financial Insights</Title>
-        {insights.map((insight, index) => (
-          <div key={index} className="insight-section">
-            <Title level={4}>{insight.message}</Title>
-            <List
-              dataSource={insight.details}
-              renderItem={item => (
-                <List.Item>
-                  <Text>{item}</Text>
-                </List.Item>
-              )}
-            />
-            <Divider />
-          </div>
-        ))}
-      </Card>
-
-      <Card className="spending-patterns">
-        <Title level={3}>Spending Analysis</Title>
-        <div className="trend-overview">
-          <Text>Overall Trend: </Text>
-          {renderTrendIndicator(spendingPatterns.trend)}
-          <Text> ({(spendingPatterns.trend * 100).toFixed(1)}%)</Text>
-        </div>
+    <div className="grid grid-cols-2 gap-6">
+      <Card className="shadow-sm">
+        <Title level={4}>Financial Insights</Title>
         
-        <div className="spending-chart">
-          {renderSpendingTrends()}
-        </div>
-
-        <div className="category-analysis">
-          <Title level={4}>Category Analysis</Title>
-          {Object.entries(spendingPatterns.categories).map(([category, data]) => (
-            <div key={category} className="category-item">
-              <Text strong>{category}</Text>
-              <Text>Average: ${data.average.toFixed(2)}</Text>
-              <Tooltip title="Spending volatility">
-                <Progress 
-                  percent={data.volatility * 100} 
-                  size="small"
-                  status={data.volatility > 0.5 ? "exception" : "active"}
-                />
-              </Tooltip>
-            </div>
+        {/* Financial Summary */}
+        <div className="mb-6">
+          <Title level={5}>Financial Summary</Title>
+          {insights?.find(i => i.type === 'summary')?.details?.map((detail: string, index: number) => (
+            <Text key={index} className="block text-gray-600">{detail}</Text>
           ))}
         </div>
 
-        {spendingPatterns.predictions.length > 0 && renderPredictions()}
+        {/* Top Spending Categories */}
+        <div className="mb-6">
+          <Title level={5}>Top Spending Categories:</Title>
+          {insights?.find(i => i.type === 'categories')?.details?.map((detail: string, index: number) => (
+            <Text key={index} className="block text-gray-600">{detail}</Text>
+          ))}
+        </div>
+
+        {/* Recent Large Transactions */}
+        <div className="mb-6">
+          <Title level={5}>Recent Large Transactions:</Title>
+          {insights?.find(i => i.type === 'large_transactions')?.details?.map((detail: string, index: number) => (
+            <Text key={index} className="block text-gray-600">{detail}</Text>
+          ))}
+        </div>
+
+        {/* Financial Recommendations */}
+        <div>
+          <Title level={5}>Financial Recommendations:</Title>
+          {insights?.find(i => i.type === 'recommendations')?.details?.map((detail: string, index: number) => (
+            <Text key={index} className="block text-gray-600">{detail}</Text>
+          ))}
+        </div>
       </Card>
 
-      <style jsx>{`
-        .financial-insight-hub {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          padding: 20px;
-        }
+      <Card className="shadow-sm">
+        <Title level={4}>Spending Analysis</Title>
+        <div className="mb-4">
+          <Text>Overall Trend: </Text>
+          {(spendingPatterns?.trend || 0) > 0 ? (
+            <Text type="danger">
+              <ArrowUpOutlined /> {((spendingPatterns?.trend || 0) * 100).toFixed(1)}%
+            </Text>
+          ) : (
+            <Text type="success">
+              <ArrowDownOutlined /> {((spendingPatterns?.trend || 0) * 100).toFixed(1)}%
+            </Text>
+          )}
+        </div>
 
-        .main-insights, .spending-patterns {
-          height: 100%;
-        }
+        {/* Spending Chart */}
+        <div className="h-64 mb-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <RechartsTooltip />
+              <Area 
+                type="monotone" 
+                dataKey="amount" 
+                stroke="#1890ff"
+                fill="#1890ff"
+                fillOpacity={0.3}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
 
-        .insight-section {
-          margin-bottom: 20px;
-        }
-
-        .trend-overview {
-          margin-bottom: 20px;
-        }
-
-        .spending-chart {
-          height: 300px;
-          margin: 20px 0;
-        }
-
-        .category-item {
-          margin: 10px 0;
-        }
-
-        @media (max-width: 768px) {
-          .financial-insight-hub {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+        {/* Category Analysis */}
+        <div>
+          <Title level={5}>Category Analysis</Title>
+          {categoryData.map(({ category, average, volatility }) => (
+            <div key={category} className="mb-4">
+              <div className="flex justify-between mb-1">
+                <Text>{category}</Text>
+                <Text>${average.toFixed(2)}</Text>
+              </div>
+              <Progress 
+                percent={Math.min(volatility * 100, 100)} 
+                size="small"
+                status={volatility > 0.5 ? "exception" : "active"}
+                showInfo={false}
+              />
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 };

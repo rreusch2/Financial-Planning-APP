@@ -6,13 +6,15 @@ import {
   LineChart,
   Target,
   Settings,
-  MessageSquareText
+  MessageSquareText,
+  Wallet
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const navigation = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/app/dashboard' },
   { name: 'Transactions', icon: PiggyBank, href: '/app/transactions' },
+  { name: 'Budget', icon: Wallet, href: '/app/budget' },
   { name: 'Analytics', icon: LineChart, href: '/app/analytics' },
   { name: 'Goals', icon: Target, href: '/app/goals' },
   { name: 'AI Advisor', icon: MessageSquareText, href: '/app/advisor' },

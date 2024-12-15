@@ -1,5 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Settings as SettingsIcon, Bell, Lock, User, CreditCard } from 'lucide-react';
+
+function BudgetSetup() {
+  const [category, setCategory] = useState('');
+  const [limit, setLimit] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const response = await fetch('/api/budget', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category, limit }),
+    });
+    const data = await response.json();
+    console.log(data.message);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="Category"
+      />
+      <input
+        type="number"
+        value={limit}
+        onChange={(e) => setLimit(e.target.value)}
+        placeholder="Limit"
+      />
+      <button type="submit">Set Budget</button>
+    </form>
+  );
+}
 
 export default function Settings() {
   return (
@@ -92,6 +126,8 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      <BudgetSetup />
     </div>
   );
 }
