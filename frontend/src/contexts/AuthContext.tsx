@@ -1,8 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { AuthService } from '../lib/auth';
-import { User } from '../types/auth';
-// Removed import of 'authApi' since it's not exported from '../lib/auth'
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { User } from '../types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -10,102 +7,96 @@ interface AuthContextType {
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  // Added 'refreshUser' to the interface
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const authService = AuthService.getInstance();
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const location = useLocation();
 
-  const checkAuth = useCallback(async () => {
+  const refreshUser = async () => {
     try {
-      const response = await authService.getCurrentUser();
-      if (response?.user) {
-        setUser(response.user);
+      const response = await fetch('/api/auth/current_user', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
       } else {
         setUser(null);
       }
-    } catch (error) {
-      console.error('CheckAuth error:', error);
+    } catch (err) {
+      setError('Failed to fetch user');
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   const login = async (username: string, password: string) => {
     try {
-      setLoading(true);
-      setError(null);
-      const response = await authService.login(username, password);
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
 
-      if (response?.user) {
-        setUser(response.user);
-        const from = (location.state as any)?.from?.pathname || '/app/dashboard';
-        navigate(from, { replace: true });
+      if (!response.ok) {
+        throw new Error('Login failed');
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Login failed');
-      throw error;
-    } finally {
-      setLoading(false);
+
+      await refreshUser();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+      throw err;
     }
   };
 
   const logout = async () => {
     try {
-      await authService.logout();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
       setUser(null);
-      setError(null);
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (err) {
       setError('Logout failed');
     }
   };
 
-  const refreshUser = async () => {
-    try {
-      const response = await authService.getCurrentUser();
-      if (response?.user) {
-        setUser(response.user);
-      }
-    } catch (error) {
-      console.error('Error refreshing user:', error);
-      setUser(null);
-    }
+  useEffect(() => {
+    refreshUser();
+  }, []);
+
+  const value = {
+    user,
+    loading,
+    error,
+    login,
+    logout,
+    refreshUser
   };
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        login,
-        logout,
-        refreshUser, // Included 'refreshUser' in the context value
-      }}
-    >
-      {!loading && children}
+    <AuthContext.Provider value={value}>
+      {children}
     </AuthContext.Provider>
   );
-}
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

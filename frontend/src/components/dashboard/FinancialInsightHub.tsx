@@ -1,104 +1,187 @@
 import React from 'react';
-import { Brain, Sparkles, TrendingUp, Target, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Card, Typography, List, Divider, Progress, Tooltip } from 'antd';
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
-interface InsightCardProps {
-  title: string;
-  content: string;
-  type: 'prediction' | 'alert' | 'opportunity';
-  confidence: number;
+const { Title, Text } = Typography;
+
+interface Insight {
+  type: string;
+  message: string;
+  details: string[];
 }
 
-const InsightCard = ({ title, content, type, confidence }: InsightCardProps) => {
-  const getIcon = () => {
-    switch (type) {
-      case 'prediction':
-        return <Brain className="h-6 w-6 text-indigo-600" />;
-      case 'alert':
-        return <AlertCircle className="h-6 w-6 text-amber-600" />;
-      case 'opportunity':
-        return <Target className="h-6 w-6 text-green-600" />;
+interface SpendingPattern {
+  trend: number;
+  categories: {
+    [key: string]: {
+      average: number;
+      std_dev: number;
+      volatility: number;
+    };
+  };
+  predictions: {
+    month: string;
+    amount: number;
+    confidence: number;
+  }[];
+  monthly_analysis: {
+    [key: string]: {
+      total: number;
+      categories: {
+        [key: string]: number;
+      };
+    };
+  };
+  spending_velocity: number;
+}
+
+interface Props {
+  insights: Insight[];
+  spendingPatterns: SpendingPattern;
+}
+
+const FinancialInsightHub: React.FC<Props> = ({ insights, spendingPatterns }) => {
+  const renderTrendIndicator = (trend: number) => {
+    if (trend > 0) {
+      return <ArrowUpOutlined style={{ color: trend > 0.1 ? 'red' : 'orange' }} />;
     }
+    return <ArrowDownOutlined style={{ color: 'green' }} />;
   };
 
-  const getGradient = () => {
-    switch (type) {
-      case 'prediction':
-        return 'from-indigo-50 to-white';
-      case 'alert':
-        return 'from-amber-50 to-white';
-      case 'opportunity':
-        return 'from-green-50 to-white';
-    }
+  const renderSpendingTrends = () => {
+    const monthlyData = Object.entries(spendingPatterns.monthly_analysis)
+      .map(([month, data]) => ({
+        month,
+        amount: data.total
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <AreaChart data={monthlyData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="month" />
+          <YAxis />
+          <Tooltip />
+          <Area 
+            type="monotone" 
+            dataKey="amount" 
+            stroke="#1890ff"
+            fill="#1890ff"
+            fillOpacity={0.3}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderPredictions = () => {
+    return (
+      <div>
+        <Title level={4}>Spending Predictions</Title>
+        {spendingPatterns.predictions.map((prediction, index) => (
+          <div key={index}>
+            <Text>{prediction.month}: </Text>
+            <Text strong>${prediction.amount.toFixed(2)}</Text>
+            <Tooltip title="Prediction confidence">
+              <Progress percent={prediction.confidence * 100} size="small" />
+            </Tooltip>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-gradient-to-br ${getGradient()} rounded-xl shadow-sm p-6 hover:shadow-md transition-all duration-200`}
-    >
-      <div className="flex items-center gap-3 mb-4">
-        {getIcon()}
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg">{title}</h3>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-16 bg-gray-200 rounded-full">
-              <div 
-                className="h-full bg-indigo-600 rounded-full"
-                style={{ width: `${confidence}%` }}
-              />
-            </div>
-            <span className="text-sm text-gray-500">
-              {confidence}% confidence
-            </span>
+    <div className="financial-insight-hub">
+      <Card className="main-insights">
+        <Title level={3}>Financial Insights</Title>
+        {insights.map((insight, index) => (
+          <div key={index} className="insight-section">
+            <Title level={4}>{insight.message}</Title>
+            <List
+              dataSource={insight.details}
+              renderItem={item => (
+                <List.Item>
+                  <Text>{item}</Text>
+                </List.Item>
+              )}
+            />
+            <Divider />
           </div>
+        ))}
+      </Card>
+
+      <Card className="spending-patterns">
+        <Title level={3}>Spending Analysis</Title>
+        <div className="trend-overview">
+          <Text>Overall Trend: </Text>
+          {renderTrendIndicator(spendingPatterns.trend)}
+          <Text> ({(spendingPatterns.trend * 100).toFixed(1)}%)</Text>
         </div>
-      </div>
-      <p className="text-gray-600">{content}</p>
-    </motion.div>
+        
+        <div className="spending-chart">
+          {renderSpendingTrends()}
+        </div>
+
+        <div className="category-analysis">
+          <Title level={4}>Category Analysis</Title>
+          {Object.entries(spendingPatterns.categories).map(([category, data]) => (
+            <div key={category} className="category-item">
+              <Text strong>{category}</Text>
+              <Text>Average: ${data.average.toFixed(2)}</Text>
+              <Tooltip title="Spending volatility">
+                <Progress 
+                  percent={data.volatility * 100} 
+                  size="small"
+                  status={data.volatility > 0.5 ? "exception" : "active"}
+                />
+              </Tooltip>
+            </div>
+          ))}
+        </div>
+
+        {spendingPatterns.predictions.length > 0 && renderPredictions()}
+      </Card>
+
+      <style jsx>{`
+        .financial-insight-hub {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          padding: 20px;
+        }
+
+        .main-insights, .spending-patterns {
+          height: 100%;
+        }
+
+        .insight-section {
+          margin-bottom: 20px;
+        }
+
+        .trend-overview {
+          margin-bottom: 20px;
+        }
+
+        .spending-chart {
+          height: 300px;
+          margin: 20px 0;
+        }
+
+        .category-item {
+          margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+          .financial-insight-hub {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+    </div>
   );
 };
 
-interface FinancialInsightHubProps {
-  insights?: {
-    predictions: Array<{
-      title: string;
-      content: string;
-      confidence: number;
-      type: 'prediction' | 'alert' | 'opportunity';
-    }>;
-    analysis: string;
-  };
-}
-
-export function FinancialInsightHub({ insights }: FinancialInsightHubProps) {
-  if (!insights?.predictions) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-gray-500">Loading insights...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">AI Financial Insights</h2>
-          <p className="text-gray-500">Powered by Google Gemini</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-indigo-600">
-          <Sparkles className="h-4 w-4" />
-          <span>Last updated: Just now</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.isArray(insights.predictions) && insights.predictions.map((insight, index) => (
-          <InsightCard key={index} {...insight} />
-        ))}
-      </div>
-    </div>
-  );
-}
+export default FinancialInsightHub;

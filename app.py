@@ -187,11 +187,146 @@ def get_budget_recommendations():
         logger.error(f"Error getting budget recommendations: {e}")
         return jsonify({'error': 'Failed to get budget recommendations'}), 500
 
+def generate_insights(transactions):
+    """Generate comprehensive financial insights from transactions."""
+    if not transactions:
+        return []
+        
+    insights = []
+    
+    # Convert transactions to dicts if they aren't already
+    transaction_dicts = [t.to_dict() if hasattr(t, 'to_dict') else t for t in transactions]
+    
+    # Calculate total spending and income
+    total_spending = sum(t['amount'] for t in transaction_dicts if t['amount'] > 0)
+    total_income = abs(sum(t['amount'] for t in transaction_dicts if t['amount'] < 0))
+    
+    # Calculate spending by category with trends
+    category_spending = {}
+    category_trends = {}
+    for t in transaction_dicts:
+        if t['amount'] > 0:  # Only consider expenses
+            category = t['category'] or 'Uncategorized'
+            if category not in category_spending:
+                category_spending[category] = []
+            category_spending[category].append({
+                'amount': t['amount'],
+                'date': datetime.strptime(t['date'], '%Y-%m-%d') if isinstance(t['date'], str) else t['date']
+            })
+    
+    # Calculate category trends and averages
+    for category, transactions in category_spending.items():
+        sorted_trans = sorted(transactions, key=lambda x: x['date'])
+        if len(sorted_trans) >= 2:
+            first_half = sum(t['amount'] for t in sorted_trans[:len(sorted_trans)//2])
+            second_half = sum(t['amount'] for t in sorted_trans[len(sorted_trans)//2:])
+            trend = ((second_half - first_half) / first_half) if first_half else 0
+            category_trends[category] = trend
+    
+    # Generate summary insights
+    savings_rate = ((total_income - total_spending) / total_income * 100) if total_income else 0
+    insights.append({
+        'type': 'summary',
+        'message': f'Financial Summary',
+        'details': [
+            f'Total spending: ${total_spending:.2f}',
+            f'Total income: ${total_income:.2f}',
+            f'Savings rate: {savings_rate:.1f}%'
+        ]
+    })
+    
+    # Top spending categories with trends
+    top_categories = sorted(
+        [(cat, sum(t['amount'] for t in trans)) 
+         for cat, trans in category_spending.items()],
+        key=lambda x: x[1],
+        reverse=True
+    )[:3]
+    
+    if top_categories:
+        insights.append({
+            'type': 'categories',
+            'message': 'Top Spending Categories:',
+            'details': [
+                f'{cat}: ${amt:.2f} ({get_trend_indicator(category_trends.get(cat, 0))})'
+                for cat, amt in top_categories
+            ]
+        })
+    
+    # Large transactions
+    large_transactions = [t for t in transaction_dicts if t['amount'] > 100]
+    if large_transactions:
+        insights.append({
+            'type': 'large_transactions',
+            'message': 'Recent Large Transactions:',
+            'details': [
+                f"{t['name']}: ${t['amount']:.2f} on {t['date']}"
+                for t in sorted(large_transactions, key=lambda x: x['date'], reverse=True)[:3]
+            ]
+        })
+    
+    # Generate recommendations
+    recommendations = generate_recommendations(
+        total_spending, 
+        total_income, 
+        category_spending, 
+        category_trends
+    )
+    if recommendations:
+        insights.append({
+            'type': 'recommendations',
+            'message': 'Financial Recommendations:',
+            'details': recommendations
+        })
+    
+    return insights
+
+def get_trend_indicator(trend):
+    """Convert trend number to readable format."""
+    if trend > 0.1:
+        return '↑ Increasing'
+    elif trend < -0.1:
+        return '↓ Decreasing'
+    else:
+        return '→ Stable'
+
+def generate_recommendations(total_spending, total_income, category_spending, category_trends):
+    """Generate personalized financial recommendations."""
+    recommendations = []
+    
+    # Check savings rate
+    savings_rate = ((total_income - total_spending) / total_income * 100) if total_income else 0
+    if savings_rate < 20:
+        recommendations.append(
+            "Consider increasing your savings rate to at least 20% of income"
+        )
+    
+    # Analyze category trends
+    for category, trend in category_trends.items():
+        if trend > 0.2:  # Significant increase
+            recommendations.append(
+                f"Your spending in {category} has increased significantly. "
+                "Consider reviewing this category for potential savings."
+            )
+    
+    # Check for high-spending categories
+    category_totals = {
+        cat: sum(t['amount'] for t in trans)
+        for cat, trans in category_spending.items()
+    }
+    
+    if 'Entertainment' in category_totals and category_totals['Entertainment'] > total_income * 0.1:
+        recommendations.append(
+            "Entertainment spending is over 10% of income. "
+            "Consider setting a budget for discretionary spending."
+        )
+    
+    return recommendations
+
 @app.route('/api/dashboard/insights', methods=['GET'])
 @login_required
 def get_dashboard_insights():
     try:
-        # First verify the user
         if not current_user or not current_user.is_authenticated:
             logger.error("User not authenticated")
             return jsonify({'error': 'Authentication required'}), 401
@@ -206,15 +341,24 @@ def get_dashboard_insights():
             logger.error(f"Database connection test failed: {e}")
             return jsonify({'error': 'Database connection error'}), 500
 
-        # Return empty data if no transactions
-        transactions = Transaction.query.filter_by(user_id=current_user.id)\
-            .order_by(Transaction.date.desc())\
-            .limit(100)\
-            .all()
+        # Get recent transactions with error handling
+        try:
+            transactions = Transaction.query.filter_by(user_id=current_user.id)\
+                .order_by(Transaction.date.desc())\
+                .limit(100)\
+                .all()
+            logger.info(f"Found {len(transactions)} transactions")
+        except Exception as e:
+            logger.error(f"Transaction query failed: {e}")
+            return jsonify({'error': 'Failed to fetch transactions'}), 500
 
+        # Return empty data if no transactions
         if not transactions:
+            logger.info("No transactions found, returning empty data")
             return jsonify({
-                'insights': {'predictions': []},
+                'insights': {
+                    'predictions': []
+                },
                 'recent_transactions': [],
                 'spending_patterns': {
                     'trend': 0,
@@ -223,86 +367,178 @@ def get_dashboard_insights():
                 }
             }), 200
 
-        # Process transactions
-        return jsonify({
-            'insights': {
-                'predictions': generate_insights(transactions)
-            },
-            'recent_transactions': [t.to_dict() for t in transactions[:10]],
-            'spending_patterns': calculate_spending_patterns(transactions)
-        }), 200
+        # Process transactions with error handling
+        try:
+            logger.info("Generating insights...")
+            insights = generate_insights(transactions)
+            logger.info("Generated insights successfully")
+            
+            logger.info("Calculating spending patterns...")
+            spending_patterns = calculate_spending_patterns(transactions)
+            logger.info("Calculated spending patterns successfully")
+            
+            response_data = {
+                'insights': {
+                    'predictions': insights
+                },
+                'recent_transactions': [t.to_dict() for t in transactions[:10]],
+                'spending_patterns': spending_patterns
+            }
+            logger.info("Prepared response data successfully")
+            
+            return jsonify(response_data), 200
+            
+        except Exception as e:
+            logger.error(f"Error processing insights: {e}", exc_info=True)  # Added exc_info for stack trace
+            return jsonify({'error': 'Failed to process insights'}), 500
 
     except Exception as e:
-        logger.error(f"Dashboard insights error: {e}")
+        logger.error(f"Dashboard insights error: {e}", exc_info=True)  # Added exc_info for stack trace
         return jsonify({'error': str(e)}), 500
 
-def calculate_spending_trend(transactions):
-    """Calculate spending trend percentage change."""
-    try:
-        if not transactions:
-            return 0
+def calculate_spending_patterns(transactions):
+    """Calculate comprehensive spending patterns and trends."""
+    if not transactions:
+        return {
+            'trend': 0,
+            'categories': {},
+            'predictions': [],
+            'monthly_analysis': {},
+            'spending_velocity': 0
+        }
+    
+    # Convert transactions to dicts if they aren't already
+    transaction_dicts = [t.to_dict() if hasattr(t, 'to_dict') else t for t in transactions]
+    
+    # Group transactions by month and category
+    monthly_data = {}
+    categories = {}
+    
+    for t in transaction_dicts:
+        if t['amount'] > 0:  # Only consider expenses
+            # Monthly grouping
+            date = datetime.strptime(t['date'], '%Y-%m-%d') if isinstance(t['date'], str) else t['date']
+            month_key = date.strftime('%Y-%m')
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {
+                    'total': 0,
+                    'categories': {}
+                }
+            monthly_data[month_key]['total'] += t['amount']
             
-        # Group transactions by month
-        monthly_totals = {}
-        for t in transactions:
-            month = t.date.strftime('%Y-%m')
-            monthly_totals[month] = monthly_totals.get(month, 0) + float(t.amount)
+            # Category grouping
+            category = t['category'] or 'Uncategorized'
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(t['amount'])
+            
+            # Update monthly category data
+            if category not in monthly_data[month_key]['categories']:
+                monthly_data[month_key]['categories'][category] = 0
+            monthly_data[month_key]['categories'][category] += t['amount']
+    
+    # Calculate category averages and trends
+    category_analysis = {}
+    for category, amounts in categories.items():
+        if amounts:  # Only process if there are amounts
+            avg = sum(amounts) / len(amounts)
+            std_dev = calculate_std_dev(amounts, avg)
+            category_analysis[category] = {
+                'average': avg,
+                'std_dev': std_dev,
+                'volatility': std_dev / avg if avg else 0
+            }
+    
+    # Calculate overall trend
+    months = sorted(monthly_data.keys())
+    trend = 0
+    
+    if len(months) >= 4:  # Need at least 4 months for meaningful trend
+        recent_months = months[-3:]  # Last 3 months
+        older_months = months[:-3]   # Earlier months
+        
+        if older_months:  # Check if we have older months
+            recent_avg = sum(monthly_data[m]['total'] for m in recent_months) / len(recent_months)
+            older_avg = sum(monthly_data[m]['total'] for m in older_months) / len(older_months)
+            
+            trend = (recent_avg - older_avg) / older_avg if older_avg else 0
+    
+    # Calculate spending velocity (rate of change)
+    velocity = 0
+    if len(months) >= 2:
+        first_month = monthly_data[months[0]]['total']
+        last_month = monthly_data[months[-1]]['total']
+        months_between = len(months)
+        velocity = (last_month - first_month) / months_between if months_between else 0
+    
+    # Generate predictions
+    predictions = predict_future_spending(monthly_data, category_analysis)
+    
+    return {
+        'trend': trend,
+        'categories': category_analysis,
+        'predictions': predictions,
+        'monthly_analysis': monthly_data,
+        'spending_velocity': velocity
+    }
 
-        # Get the last two months
-        sorted_months = sorted(monthly_totals.keys())
-        if len(sorted_months) < 2:
-            return 0
-
-        current_month = monthly_totals[sorted_months[-1]]
-        previous_month = monthly_totals[sorted_months[-2]]
-
-        # Calculate percentage change
-        if previous_month == 0:
-            return 0
-        return round(((current_month - previous_month) / abs(previous_month)) * 100, 2)
-    except Exception as e:
-        logger.error("Error calculating spending trend: %s", e)
+def calculate_std_dev(values, mean):
+    """Calculate standard deviation."""
+    if len(values) < 2:
         return 0
+    squared_diff_sum = sum((x - mean) ** 2 for x in values)
+    return (squared_diff_sum / (len(values) - 1)) ** 0.5
 
-def get_category_breakdown(transactions):
-    """Get spending breakdown by category."""
-    try:
-        categories = {}
-        for t in transactions:
-            category = t.category or 'Uncategorized'
-            categories[category] = categories.get(category, 0) + abs(float(t.amount))
-        return {k: round(v, 2) for k, v in categories.items()}
-    except Exception as e:
-        logger.error("Error getting category breakdown: %s", e)
-        return {}
+def predict_future_spending(monthly_data, category_analysis):
+    """Generate spending predictions using simple trend analysis."""
+    predictions = []
+    months = sorted(monthly_data.keys())
+    
+    if len(months) >= 3:
+        # Calculate monthly growth rate
+        monthly_totals = [monthly_data[m]['total'] for m in months]
+        growth_rates = []
+        
+        # Calculate growth rates safely
+        for i in range(1, len(monthly_totals)):
+            if monthly_totals[i-1] != 0:  # Avoid division by zero
+                growth_rate = (monthly_totals[i] - monthly_totals[i-1]) / monthly_totals[i-1]
+                growth_rates.append(growth_rate)
+        
+        if growth_rates:  # Only proceed if we have growth rates
+            avg_growth_rate = sum(growth_rates) / len(growth_rates)
+            
+            # Generate predictions for next 3 months
+            last_total = monthly_totals[-1]
+            for i in range(1, 4):
+                predicted_amount = last_total * (1 + avg_growth_rate) ** i
+                predictions.append({
+                    'month': increment_month(months[-1], i),
+                    'amount': predicted_amount,
+                    'confidence': calculate_prediction_confidence(growth_rates)
+                })
+    
+    return predictions
 
-def generate_spending_predictions(transactions):
-    """Generate simple spending predictions."""
-    try:
-        if not transactions:
-            return []
+def increment_month(month_str, increment):
+    """Increment a month string by a number of months."""
+    year, month = map(int, month_str.split('-'))
+    month += increment
+    year += (month - 1) // 12
+    month = ((month - 1) % 12) + 1
+    return f"{year}-{month:02d}"
 
-        # Calculate average monthly spending
-        monthly_totals = {}
-        for t in transactions:
-            month = t.date.strftime('%Y-%m')
-            monthly_totals[month] = monthly_totals.get(month, 0) + abs(float(t.amount))
-
-        avg_spending = sum(monthly_totals.values()) / len(monthly_totals) if monthly_totals else 0
-
-        # Generate predictions for next 3 months
-        predictions = []
-        current_date = datetime.now()
-        for i in range(1, 4):
-            future_date = current_date + timedelta(days=30 * i)
-            predictions.append({
-                'date': future_date.strftime('%Y-%m'),
-                'amount': round(avg_spending * (1 + (i * 0.02)), 2)  # Assume 2% increase each month
-            })
-        return predictions
-    except Exception as e:
-        logger.error("Error generating spending predictions: %s", e)
-        return []
+def calculate_prediction_confidence(growth_rates):
+    """Calculate confidence level for predictions based on volatility."""
+    if not growth_rates:
+        return 0
+    
+    mean = sum(growth_rates) / len(growth_rates)
+    std_dev = calculate_std_dev(growth_rates, mean)
+    
+    # Higher volatility = lower confidence
+    confidence = 1 / (1 + std_dev)
+    return min(max(confidence, 0), 1)  # Normalize to 0-1
 
 @app.route('/api/debug/db-status', methods=['GET'])
 @login_required
@@ -364,18 +600,25 @@ def check_db_schema():
 @login_required
 def verify_schema():
     try:
-        # Get the actual database schema
         inspector = db.inspect(db.engine)
-        actual_columns = {col['name'] for col in inspector.get_columns('transaction')}
+        columns = inspector.get_columns('transaction')
+        column_names = [col['name'] for col in columns]
         
-        # Get the expected columns from our model
-        model_columns = {col.key for col in Transaction.__table__.columns}
+        expected_columns = [
+            'id', 'user_id', 'transaction_id', 'account_id', 'date', 
+            'name', 'amount', 'category', 'merchant_name', 'pending',
+            'created_at', 'updated_at'
+        ]
+        
+        missing = [col for col in expected_columns if col not in column_names]
+        extra = [col for col in column_names if col not in expected_columns]
         
         return jsonify({
-            'actual_columns': list(actual_columns),
-            'model_columns': list(model_columns),
-            'missing_columns': list(model_columns - actual_columns),
-            'extra_columns': list(actual_columns - model_columns)
+            'current_columns': column_names,
+            'expected_columns': expected_columns,
+            'missing_columns': missing,
+            'extra_columns': extra,
+            'schema_matches': not missing and not extra
         }), 200
     except Exception as e:
         logger.error(f"Schema verification error: {e}")

@@ -36,30 +36,47 @@ class User(UserMixin, db.Model):
         }
 
 class Transaction(db.Model):
+    __tablename__ = 'transaction'
+    
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     transaction_id = db.Column(db.String(100), unique=True, nullable=False)
-    account_id = db.Column(db.String(100), nullable=False)  # Add this line
-    date = db.Column(db.DateTime, nullable=False)
+    account_id = db.Column(db.String(100), nullable=True)
+    date = db.Column(db.DateTime, nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    category = db.Column(db.String(100))
-    merchant_name = db.Column(db.String(200))
-    pending = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    category = db.Column(db.String(100), nullable=True)
+    merchant_name = db.Column(db.String(200), nullable=True)
+    pending = db.Column(db.Boolean, server_default='false')
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     def to_dict(self):
-        return {
-            'id': self.transaction_id,
-            'account_id': self.account_id,  # Add this field
-            'date': self.date.strftime('%Y-%m-%d'),
-            'name': self.name,
-            'amount': self.amount,
-            'category': self.category,
-            'merchant_name': self.merchant_name,
-            'pending': self.pending
-        }
+        """Convert transaction to dictionary with error handling."""
+        try:
+            return {
+                'id': self.transaction_id,
+                'account_id': str(self.account_id) if self.account_id else '',
+                'date': self.date.strftime('%Y-%m-%d') if self.date else '',
+                'name': str(self.name) if self.name else '',
+                'amount': float(self.amount) if self.amount is not None else 0.0,
+                'category': str(self.category) if self.category else 'Uncategorized',
+                'merchant_name': str(self.merchant_name) if self.merchant_name else '',
+                'pending': bool(self.pending) if self.pending is not None else False
+            }
+        except Exception as e:
+            logger.error(f"Error in to_dict for transaction {self.id}: {e}")
+            # Return a safe default dictionary
+            return {
+                'id': str(self.id),
+                'account_id': '',
+                'date': '',
+                'name': 'Error processing transaction',
+                'amount': 0.0,
+                'category': 'Uncategorized',
+                'merchant_name': '',
+                'pending': False
+            }
 
 class UserIncome(db.Model):
     __tablename__ = 'user_income'

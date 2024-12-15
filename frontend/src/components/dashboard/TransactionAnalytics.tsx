@@ -1,115 +1,129 @@
 import React from 'react';
-import { BarChart, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
-import { motion } from 'framer-motion';
-import {
-  BarChart as RechartsBarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
+import { Card, Typography, Table, Tag, Tooltip } from 'antd';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
-interface TransactionAnalyticsProps {
-  transactions?: Array<{
-    id: string;
-    date: string;
-    name: string;
-    amount: number;
-    category: string;
-  }>;
-  patterns?: {
-    trend: number;
-    categories: Record<string, number>;
-    predictions: Array<{ date: string; amount: number }>;
-  };
+const { Title, Text } = Typography;
+
+interface Transaction {
+  id: string;
+  date: string;
+  name: string;
+  amount: number;
+  category: string;
+  merchant_name: string;
+  pending: boolean;
 }
 
-export function TransactionAnalytics({ transactions, patterns }: TransactionAnalyticsProps) {
-  if (!transactions?.length) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="text-center text-gray-500">
-          {patterns ? 'No transactions found' : 'Loading transactions...'}
-        </div>
-      </div>
-    );
-  }
+interface Props {
+  transactions: Transaction[];
+}
 
-  const categoryData = patterns?.categories ? 
-    Object.entries(patterns.categories).map(([name, value]) => ({
-      name,
-      value
-    })) : [];
+const TransactionAnalytics: React.FC<Props> = ({ transactions }) => {
+  const getCategoryData = () => {
+    const categoryTotals = transactions.reduce((acc, transaction) => {
+      const category = transaction.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + transaction.amount;
+      return acc;
+    }, {} as { [key: string]: number });
+
+    return Object.entries(categoryTotals).map(([category, total]) => ({
+      category,
+      total
+    }));
+  };
+
+  const columns = [
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      sorter: (a: Transaction, b: Transaction) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+    },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      render: (amount: number) => (
+        <Text type={amount > 0 ? 'danger' : 'success'}>
+          ${Math.abs(amount).toFixed(2)}
+        </Text>
+      ),
+      sorter: (a: Transaction, b: Transaction) => a.amount - b.amount
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      render: (category: string) => (
+        <Tag color="blue">{category || 'Uncategorized'}</Tag>
+      )
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (record: Transaction) => (
+        <Tag color={record.pending ? 'orange' : 'green'}>
+          {record.pending ? 'Pending' : 'Completed'}
+        </Tag>
+      )
+    }
+  ];
+
+  const config = getCategoryData();
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900">Transaction Analytics</h3>
-          <p className="text-sm text-gray-500">Your spending patterns</p>
-        </div>
-        <BarChart className="h-6 w-6 text-indigo-600" />
-      </div>
+    <div className="transaction-analytics">
+      <Card className="spending-by-category">
+        <Title level={3}>Spending by Category</Title>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={config}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="category" />
+            <YAxis />
+            <Tooltip />
+            <Bar 
+              dataKey="total" 
+              fill="#1890ff"
+              name="Total Spending"
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
 
-      <div className="space-y-6">
-        {/* Spending Trend */}
-        {patterns && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-gradient-to-br from-indigo-50 to-white rounded-lg p-4"
-          >
-            <h4 className="font-medium text-gray-900 mb-2">Spending Trend</h4>
-            <div className="flex items-center gap-2">
-              {patterns.trend > 0 ? (
-                <TrendingUp className="h-5 w-5 text-red-600" />
-              ) : (
-                <TrendingDown className="h-5 w-5 text-green-600" />
-              )}
-              <span className="text-sm text-gray-600">
-                {Math.abs(patterns.trend)}% {patterns.trend > 0 ? 'increase' : 'decrease'} from last month
-              </span>
-            </div>
-          </motion.div>
-        )}
+      <Card className="transaction-list">
+        <Title level={3}>Recent Transactions</Title>
+        <Table 
+          dataSource={transactions}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 10 }}
+        />
+      </Card>
 
-        {/* Category Breakdown */}
-        <div className="h-64">
-          <h4 className="font-medium text-gray-900 mb-4">Category Breakdown</h4>
-          <ResponsiveContainer width="100%" height="100%">
-            <RechartsBarChart data={categoryData}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#4F46E5" />
-            </RechartsBarChart>
-          </ResponsiveContainer>
-        </div>
+      <style jsx>{`
+        .transaction-analytics {
+          display: grid;
+          grid-template-rows: auto 1fr;
+          gap: 20px;
+          padding: 20px;
+        }
 
-        {/* Recent Transactions */}
-        <div>
-          <h4 className="font-medium text-gray-900 mb-4">Recent Transactions</h4>
-          <div className="space-y-2">
-            {transactions?.slice(0, 5).map((tx) => (
-              <motion.div
-                key={tx.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex justify-between items-center p-3 rounded-lg hover:bg-gray-50"
-              >
-                <div>
-                  <p className="font-medium text-gray-900">{tx.name}</p>
-                  <p className="text-sm text-gray-500">{tx.category}</p>
-                </div>
-                <span className={`font-medium ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  ${Math.abs(tx.amount).toFixed(2)}
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
+        .spending-by-category {
+          height: 400px;
+        }
+
+        .transaction-list {
+          margin-top: 20px;
+        }
+      `}</style>
     </div>
   );
-} 
+};
+
+export default TransactionAnalytics; 
